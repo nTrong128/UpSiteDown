@@ -12,13 +12,18 @@ import {
   Upload,
   ZoomIn,
   Calendar,
-  HardDrive
+  HardDrive,
+  CheckSquare,
+  Square,
+  X
 } from 'lucide-react';
 import ImageViewer from '../components/ImageViewer';
 import { downloadImage } from '../../lib/download';
 import { Navigation } from '@/components/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface UploadedImage {
   id: number;
@@ -35,6 +40,10 @@ export default function UploadedPage() {
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [selectedImage, setSelectedImage] = useState<UploadedImage | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   useEffect(() => {
     fetchImages();
@@ -106,6 +115,73 @@ export default function UploadedPage() {
     await downloadImage(imageUrl, imageName);
   }, []);
 
+  // Selection handlers
+  const toggleSelection = useCallback((imageId: number) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(imageId)) {
+        newSet.delete(imageId);
+      } else {
+        newSet.add(imageId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedIds.size === images.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(images.map(img => img.id)));
+    }
+  }, [images, selectedIds.size]);
+
+  const exitSelectMode = useCallback(() => {
+    setIsSelectMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+
+    setIsBulkDeleting(true);
+    const idsToDelete = Array.from(selectedIds);
+    const failedDeletes: number[] = [];
+
+    try {
+      // Delete images in parallel
+      await Promise.all(
+        idsToDelete.map(async (imageId) => {
+          try {
+            const response = await fetch(`/api/images/${imageId}`, {
+              method: 'DELETE',
+            });
+            if (!response.ok) {
+              failedDeletes.push(imageId);
+            }
+          } catch {
+            failedDeletes.push(imageId);
+          }
+        })
+      );
+
+      // Remove successfully deleted images from state
+      const successfullyDeleted = idsToDelete.filter(id => !failedDeletes.includes(id));
+      setImages(prev => prev.filter(img => !successfullyDeleted.includes(img.id)));
+      setSelectedIds(new Set());
+      setShowBulkDeleteDialog(false);
+      setIsSelectMode(false);
+
+      if (failedDeletes.length > 0) {
+        alert(`Failed to delete ${failedDeletes.length} image(s). Please try again.`);
+      }
+    } catch (err) {
+      alert('Failed to delete images: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  }, [selectedIds]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       <Navigation />
@@ -165,39 +241,110 @@ export default function UploadedPage() {
 
         {!loading && !error && images.length > 0 && (
           <div className="animate-slideUp">
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
               <p className="text-muted-foreground">
                 <span className="font-medium text-foreground">{images.length}</span> image{images.length > 1 ? 's' : ''} in gallery
               </p>
+              <div className="flex items-center gap-2">
+                {isSelectMode ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={toggleSelectAll}
+                      className="flex items-center gap-2"
+                    >
+                      {selectedIds.size === images.length ? (
+                        <>
+                          <CheckSquare className="h-4 w-4" />
+                          Deselect All
+                        </>
+                      ) : (
+                        <>
+                          <Square className="h-4 w-4" />
+                          Select All
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setShowBulkDeleteDialog(true)}
+                      disabled={selectedIds.size === 0}
+                      className="flex items-center gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete ({selectedIds.size})
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={exitSelectMode}
+                      className="flex items-center gap-2"
+                    >
+                      <X className="h-4 w-4" />
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsSelectMode(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <CheckSquare className="h-4 w-4" />
+                    Select
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-stagger">
               {images.map((image) => (
                 <Card
                   key={image.id}
-                  className="image-card overflow-hidden cursor-pointer group"
+                  className={`image-card overflow-hidden cursor-pointer group relative ${
+                    selectedIds.has(image.id) ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
+                  }`}
                 >
-                  {/* Delete button - top right, visible on hover */}
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    className="delete-overlay absolute top-2 right-2 z-10 h-8 w-8 shadow-lg"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(image.id, image.original_name);
-                    }}
-                    disabled={deletingId === image.id}
-                    title="Delete image"
-                  >
-                    {deletingId === image.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                  </Button>
+                  {/* Checkbox - visible in select mode */}
+                  {isSelectMode && (
+                    <div 
+                      className="absolute top-2 left-2 z-10"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={selectedIds.has(image.id)}
+                        onCheckedChange={() => toggleSelection(image.id)}
+                        className="shadow-lg bg-background"
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Delete button - top right, visible on hover (only in non-select mode) */}
+                  {!isSelectMode && (
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="delete-overlay absolute top-2 right-2 z-10 h-8 w-8 shadow-lg"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(image.id, image.original_name);
+                      }}
+                      disabled={deletingId === image.id}
+                      title="Delete image"
+                    >
+                      {deletingId === image.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
                   
                   <div
-                    className="relative h-48 bg-muted"
-                    onClick={() => handleImageClick(image)}
+                    className="relative h-48 bg-muted dark:bg-muted/50"
+                    onClick={() => isSelectMode ? toggleSelection(image.id) : handleImageClick(image)}
                   >
                     <Image
                       src={image.url}
@@ -207,13 +354,22 @@ export default function UploadedPage() {
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
                     {/* Hover overlay */}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/20 backdrop-blur-sm rounded-full p-3">
-                        <ZoomIn className="w-6 h-6 text-white" />
+                    {!isSelectMode && (
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/20 backdrop-blur-sm rounded-full p-3">
+                          <ZoomIn className="w-6 h-6 text-white" />
+                        </div>
                       </div>
-                    </div>
+                    )}
+                    {/* Selection overlay */}
+                    {isSelectMode && selectedIds.has(image.id) && (
+                      <div className="absolute inset-0 bg-primary/10 transition-all duration-300" />
+                    )}
                   </div>
-                  <CardContent className="py-3 cursor-pointer" onClick={() => handleImageClick(image)}>
+                  <CardContent 
+                    className="py-3 cursor-pointer" 
+                    onClick={() => isSelectMode ? toggleSelection(image.id) : handleImageClick(image)}
+                  >
                     <h3 className="text-sm font-medium truncate mb-2">
                       {image.original_name}
                     </h3>
@@ -260,6 +416,19 @@ export default function UploadedPage() {
             isDeleting={deletingId === selectedImage.id}
           />
         )}
+
+        {/* Bulk delete confirmation dialog */}
+        <ConfirmDialog
+          isOpen={showBulkDeleteDialog}
+          title="Delete Selected Images"
+          message={`Are you sure you want to delete ${selectedIds.size} image${selectedIds.size > 1 ? 's' : ''}? This action cannot be undone.`}
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="destructive"
+          onConfirm={handleBulkDelete}
+          onCancel={() => setShowBulkDeleteDialog(false)}
+          isLoading={isBulkDeleting}
+        />
       </main>
     </div>
   );

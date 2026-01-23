@@ -188,7 +188,11 @@ body {
 
 /* Image card hover animation */
 .image-card {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.dark .image-card {
+  border-color: hsl(217.2 32.6% 25%);
 }
 
 .image-card:hover {
@@ -198,6 +202,7 @@ body {
 
 .dark .image-card:hover {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  border-color: hsl(239 84% 67% / 0.5);
 }
 
 .image-card .delete-overlay {
