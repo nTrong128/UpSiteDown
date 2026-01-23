@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { EdgeStoreProvider } from "@/lib/edgestore-context";
+import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
   title: "UpSiteDown - Image Upload Service",
@@ -13,9 +14,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased">
-        <EdgeStoreProvider>{children}</EdgeStoreProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body className="antialiased min-h-screen bg-background">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          <EdgeStoreProvider>{children}</EdgeStoreProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
