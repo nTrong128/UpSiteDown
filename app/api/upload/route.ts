@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initDatabase, saveImage } from '@/lib/db';
+import { randomUUID } from 'crypto';
 
 interface UploadedFileInfo {
   originalName: string;
   size: number;
   url: string;
+}
+
+function isValidFileInfo(file: unknown): file is UploadedFileInfo {
+  return (
+    typeof file === 'object' &&
+    file !== null &&
+    typeof (file as UploadedFileInfo).originalName === 'string' &&
+    typeof (file as UploadedFileInfo).size === 'number' &&
+    typeof (file as UploadedFileInfo).url === 'string'
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -13,9 +24,18 @@ export async function POST(request: NextRequest) {
     await initDatabase();
 
     const body = await request.json();
-    const files: UploadedFileInfo[] = body.files;
+    
+    // Validate request body structure
+    if (!body || typeof body !== 'object' || !Array.isArray(body.files)) {
+      return NextResponse.json(
+        { error: 'Invalid request body: expected { files: [...] }' },
+        { status: 400 }
+      );
+    }
 
-    if (!files || files.length === 0) {
+    const files = body.files;
+
+    if (files.length === 0) {
       return NextResponse.json(
         { error: 'No files provided' },
         { status: 400 }
@@ -29,13 +49,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate each file info
+    for (const file of files) {
+      if (!isValidFileInfo(file)) {
+        return NextResponse.json(
+          { error: 'Invalid file info: each file must have originalName, size, and url' },
+          { status: 400 }
+        );
+      }
+    }
+
     const uploadedFiles = [];
 
-    for (const file of files) {
-      // Generate unique filename
-      const timestamp = Date.now();
-      const randomStr = Math.random().toString(36).substring(2, 15);
-      const uniqueFilename = `${timestamp}-${randomStr}-${file.originalName}`;
+    for (const file of files as UploadedFileInfo[]) {
+      // Generate unique filename using crypto.randomUUID for better uniqueness
+      const uniqueFilename = `${randomUUID()}-${file.originalName}`;
 
       // Save metadata and URL to database
       const result = await saveImage(

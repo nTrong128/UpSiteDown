@@ -39,26 +39,29 @@ export default function Home() {
     setUploadProgress(0);
 
     try {
-      const uploadedFiles: { originalName: string; size: number; url: string }[] = [];
       const totalFiles = selectedFiles.length;
+      let completedUploads = 0;
 
-      // Upload files to Edge Store
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const file = selectedFiles[i];
-
-        // Upload to Edge Store
-        const res = await edgestore.publicFiles.upload({
-          file,
-        });
-
-        uploadedFiles.push({
+      // Upload files to Edge Store in parallel with concurrency limit
+      const CONCURRENCY_LIMIT = 5;
+      const uploadedFiles: { originalName: string; size: number; url: string }[] = [];
+      
+      const uploadFile = async (file: File) => {
+        const res = await edgestore.publicFiles.upload({ file });
+        completedUploads++;
+        setUploadProgress(Math.round((completedUploads / totalFiles) * 100));
+        return {
           originalName: file.name,
           size: file.size,
           url: res.url,
-        });
+        };
+      };
 
-        // Update progress
-        setUploadProgress(Math.round(((i + 1) / totalFiles) * 100));
+      // Process files in batches for parallel uploads
+      for (let i = 0; i < selectedFiles.length; i += CONCURRENCY_LIMIT) {
+        const batch = selectedFiles.slice(i, i + CONCURRENCY_LIMIT);
+        const results = await Promise.all(batch.map(uploadFile));
+        uploadedFiles.push(...results);
       }
 
       // Save metadata to database
