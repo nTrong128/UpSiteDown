@@ -1,5 +1,6 @@
 import { initEdgeStore } from '@edgestore/server';
 import { createEdgeStoreNextHandler } from '@edgestore/server/adapters/next/app';
+import { initEdgeStoreClient } from '@edgestore/server/core';
 
 const es = initEdgeStore.create();
 
@@ -19,6 +20,21 @@ const edgeStoreRouter = es.router({
 export const handler = createEdgeStoreNextHandler({
   router: edgeStoreRouter,
 });
+
+/**
+ * Backend client for server-side EdgeStore operations.
+ * Initialized lazily to avoid issues during build time without env vars.
+ */
+let backendClient: ReturnType<typeof initEdgeStoreClient<typeof edgeStoreRouter>> | null = null;
+
+export function getEdgeStoreBackendClient() {
+  if (!backendClient) {
+    backendClient = initEdgeStoreClient({
+      router: edgeStoreRouter,
+    });
+  }
+  return backendClient;
+}
 
 /**
  * This type is used to create the type-safe client for the frontend.
