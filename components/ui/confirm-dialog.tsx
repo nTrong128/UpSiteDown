@@ -11,6 +11,7 @@ interface ConfirmDialogProps {
   message: string
   confirmText?: string
   cancelText?: string
+  loadingText?: string
   variant?: 'default' | 'destructive'
   onConfirm: () => void
   onCancel: () => void
@@ -23,6 +24,7 @@ export function ConfirmDialog({
   message,
   confirmText = "Confirm",
   cancelText = "Cancel",
+  loadingText = "Processing...",
   variant = 'default',
   onConfirm,
   onCancel,
@@ -116,7 +118,7 @@ export function ConfirmDialog({
             disabled={isLoading}
             className="min-w-[100px]"
           >
-            {isLoading ? 'Deleting...' : confirmText}
+            {isLoading ? loadingText : confirmText}
           </Button>
         </div>
       </div>

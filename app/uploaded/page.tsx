@@ -44,6 +44,7 @@ export default function UploadedPage() {
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchImages();
@@ -139,12 +140,14 @@ export default function UploadedPage() {
   const exitSelectMode = useCallback(() => {
     setIsSelectMode(false);
     setSelectedIds(new Set());
+    setBulkDeleteError(null);
   }, []);
 
   const handleBulkDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;
 
     setIsBulkDeleting(true);
+    setBulkDeleteError(null);
     const idsToDelete = Array.from(selectedIds);
     const failedDeletes: number[] = [];
 
@@ -173,10 +176,11 @@ export default function UploadedPage() {
       setIsSelectMode(false);
 
       if (failedDeletes.length > 0) {
-        alert(`Failed to delete ${failedDeletes.length} image(s). Please try again.`);
+        setBulkDeleteError(`Failed to delete ${failedDeletes.length} image(s). Please try again.`);
       }
     } catch (err) {
-      alert('Failed to delete images: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      setBulkDeleteError('Failed to delete images: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      setShowBulkDeleteDialog(false);
     } finally {
       setIsBulkDeleting(false);
     }
@@ -212,6 +216,27 @@ export default function UploadedPage() {
               <div className="flex items-center gap-3 text-destructive">
                 <AlertCircle className="h-5 w-5" />
                 <span className="font-medium">{error}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {bulkDeleteError && (
+          <Card className="border-destructive/50 bg-destructive/10 animate-scaleIn mb-4">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 text-destructive">
+                  <AlertCircle className="h-5 w-5" />
+                  <span className="font-medium">{bulkDeleteError}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  onClick={() => setBulkDeleteError(null)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -424,6 +449,7 @@ export default function UploadedPage() {
           message={`Are you sure you want to delete ${selectedIds.size} image${selectedIds.size > 1 ? 's' : ''}? This action cannot be undone.`}
           confirmText="Delete"
           cancelText="Cancel"
+          loadingText="Deleting..."
           variant="destructive"
           onConfirm={handleBulkDelete}
           onCancel={() => setShowBulkDeleteDialog(false)}

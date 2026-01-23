@@ -11,27 +11,46 @@ export interface CheckboxProps
 
 const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
   ({ className, onCheckedChange, checked, ...props }, ref) => {
+    const inputRef = React.useRef<HTMLInputElement>(null);
+    
+    // Merge refs
+    React.useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
+
+    const handleClick = () => {
+      inputRef.current?.click();
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        inputRef.current?.click();
+      }
+    };
+
     return (
       <div className="relative inline-flex items-center">
         <input
           type="checkbox"
-          ref={ref}
+          ref={inputRef}
           checked={checked}
           onChange={(e) => onCheckedChange?.(e.target.checked)}
-          className="sr-only peer"
+          className="sr-only"
           {...props}
         />
         <div
+          role="checkbox"
+          aria-checked={checked}
+          tabIndex={0}
           className={cn(
             "h-5 w-5 shrink-0 rounded-md border border-primary ring-offset-background transition-all",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-            "peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-            "peer-checked:bg-primary peer-checked:text-primary-foreground",
+            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
             "cursor-pointer flex items-center justify-center",
-            "bg-background hover:bg-accent",
+            checked ? "bg-primary text-primary-foreground" : "bg-background hover:bg-accent",
+            props.disabled && "cursor-not-allowed opacity-50",
             className
           )}
-          onClick={() => onCheckedChange?.(!checked)}
+          onClick={handleClick}
+          onKeyDown={handleKeyDown}
         >
           {checked && <Check className="h-4 w-4 text-primary-foreground" />}
         </div>
