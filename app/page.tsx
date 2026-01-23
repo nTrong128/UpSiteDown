@@ -3,12 +3,15 @@
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import Link from 'next/link';
+import { useEdgeStore } from '@/lib/edgestore-context';
 
 export default function Home() {
   const [uploading, setUploading] = useState(false);
   const [uploadedCount, setUploadedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const { edgestore } = useEdgeStore();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setError(null);
@@ -33,16 +36,38 @@ export default function Home() {
 
     setUploading(true);
     setError(null);
+    setUploadProgress(0);
 
     try {
-      const formData = new FormData();
-      selectedFiles.forEach((file) => {
-        formData.append('files', file);
-      });
+      const uploadedFiles: { originalName: string; size: number; url: string }[] = [];
+      const totalFiles = selectedFiles.length;
 
+      // Upload files to Edge Store
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+
+        // Upload to Edge Store
+        const res = await edgestore.publicFiles.upload({
+          file,
+        });
+
+        uploadedFiles.push({
+          originalName: file.name,
+          size: file.size,
+          url: res.url,
+        });
+
+        // Update progress
+        setUploadProgress(Math.round(((i + 1) / totalFiles) * 100));
+      }
+
+      // Save metadata to database
       const response = await fetch('/api/upload', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ files: uploadedFiles }),
       });
 
       const data = await response.json();
@@ -50,6 +75,7 @@ export default function Home() {
       if (response.ok) {
         setUploadedCount(data.count);
         setSelectedFiles([]);
+        setUploadProgress(0);
         setTimeout(() => setUploadedCount(0), 3000);
       } else {
         setError(data.error || 'Upload failed');
@@ -58,6 +84,7 @@ export default function Home() {
       setError('Upload failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -164,6 +191,22 @@ export default function Home() {
                 </div>
               ))}
             </div>
+
+            {/* Progress Bar */}
+            {uploading && uploadProgress > 0 && (
+              <div className="mt-4">
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                  <div
+                    className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 text-center">
+                  Uploading... {uploadProgress}%
+                </p>
+              </div>
+            )}
+
             <button
               onClick={handleUpload}
               disabled={uploading}

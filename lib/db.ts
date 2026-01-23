@@ -18,7 +18,7 @@ export interface UploadedImage {
   original_name: string;
   size: number;
   upload_date: Date;
-  data: string; // base64 encoded image data
+  url: string; // Edge Store URL
 }
 
 export async function initDatabase() {
@@ -31,17 +31,17 @@ export async function initDatabase() {
       original_name TEXT NOT NULL,
       size INTEGER NOT NULL,
       upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      data TEXT NOT NULL
+      url TEXT NOT NULL
     )
   `;
 }
 
-export async function saveImage(filename: string, originalName: string, size: number, data: string) {
+export async function saveImage(filename: string, originalName: string, size: number, url: string) {
   const sql = getSQL();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result: any = await sql`
-    INSERT INTO images (filename, original_name, size, data)
-    VALUES (${filename}, ${originalName}, ${size}, ${data})
+    INSERT INTO images (filename, original_name, size, url)
+    VALUES (${filename}, ${originalName}, ${size}, ${url})
     RETURNING id, filename, original_name, size, upload_date
   `;
   return result[0] as { id: number; filename: string; original_name: string; size: number; upload_date: Date };
@@ -50,7 +50,7 @@ export async function saveImage(filename: string, originalName: string, size: nu
 export async function getAllImages(): Promise<UploadedImage[]> {
   const sql = getSQL();
   const result = await sql`
-    SELECT id, filename, original_name, size, upload_date, data
+    SELECT id, filename, original_name, size, upload_date, url
     FROM images
     ORDER BY upload_date DESC
   `;

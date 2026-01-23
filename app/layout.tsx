@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { EdgeStoreProvider } from "@/lib/edgestore-context";
 
 export const metadata: Metadata = {
   title: "UpSiteDown - Image Upload Service",
@@ -14,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        {children}
+        <EdgeStoreProvider>{children}</EdgeStoreProvider>
       </body>
     </html>
   );

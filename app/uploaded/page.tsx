@@ -10,7 +10,7 @@ interface UploadedImage {
   original_name: string;
   size: number;
   upload_date: string;
-  data: string;
+  url: string;
 }
 
 export default function UploadedPage() {
@@ -136,7 +136,7 @@ export default function UploadedPage() {
                 >
                   <div className="relative h-48 bg-gray-100 dark:bg-gray-700">
                     <Image
-                      src={image.data}
+                      src={image.url}
                       alt={image.original_name}
                       fill
                       className="object-contain"
