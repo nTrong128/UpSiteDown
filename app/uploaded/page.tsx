@@ -17,6 +17,9 @@ export default function UploadedPage() {
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchImages();
@@ -30,6 +33,7 @@ export default function UploadedPage() {
 
       if (response.ok) {
         setImages(data.images);
+        setSelectedIds(new Set()); // Clear selection when fetching
       } else {
         setError(data.error || 'Failed to fetch images');
       }
@@ -37,6 +41,93 @@ export default function UploadedPage() {
       setError('Failed to fetch images: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSelectImage = (id: number) => {
+    setSelectedIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === images.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(images.map((img) => img.id)));
+    }
+  };
+
+  const handleDeleteSingle = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this image?')) return;
+
+    setDeleting(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await fetch('/api/images/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccessMessage('Image deleted successfully');
+        setImages((prev) => prev.filter((img) => img.id !== id));
+        setSelectedIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(id);
+          return newSet;
+        });
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        setError(data.error || 'Failed to delete image');
+      }
+    } catch (err) {
+      setError('Failed to delete image: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedIds.size} image(s)?`)) return;
+
+    setDeleting(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await fetch('/api/images/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccessMessage(`Deleted ${data.deletedCount} image(s) successfully`);
+        setImages((prev) => prev.filter((img) => !selectedIds.has(img.id)));
+        setSelectedIds(new Set());
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        setError(data.error || 'Failed to delete images');
+      }
+    } catch (err) {
+      setError('Failed to delete images: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -88,8 +179,14 @@ export default function UploadedPage() {
         )}
 
         {error && (
-          <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
+          <div className="mb-4 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
             {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mb-4 bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg">
+            {successMessage}
           </div>
         )}
 
@@ -125,15 +222,66 @@ export default function UploadedPage() {
 
         {!loading && !error && images.length > 0 && (
           <div>
-            <div className="mb-4 text-gray-700 dark:text-gray-300">
-              Total: {images.length} image{images.length > 1 ? 's' : ''}
+            {/* Bulk Actions Bar */}
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.size === images.length && images.length > 0}
+                    onChange={handleSelectAll}
+                    className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">
+                    Select All
+                  </span>
+                </label>
+                <span className="text-gray-600 dark:text-gray-400 text-sm">
+                  {selectedIds.size > 0 ? `${selectedIds.size} selected` : `Total: ${images.length} image${images.length > 1 ? 's' : ''}`}
+                </span>
+              </div>
+              {selectedIds.size > 0 && (
+                <button
+                  onClick={handleDeleteSelected}
+                  disabled={deleting}
+                  className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  {deleting ? 'Deleting...' : `Delete ${selectedIds.size} Selected`}
+                </button>
+              )}
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {images.map((image) => (
                 <div
                   key={image.id}
-                  className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                  className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow relative ${
+                    selectedIds.has(image.id) ? 'ring-2 ring-indigo-500' : ''
+                  }`}
                 >
+                  {/* Checkbox for selection */}
+                  <div className="absolute top-2 left-2 z-10">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(image.id)}
+                      onChange={() => handleSelectImage(image.id)}
+                      className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                  </div>
+                  {/* Delete button */}
+                  <button
+                    onClick={() => handleDeleteSingle(image.id)}
+                    disabled={deleting}
+                    className="absolute top-2 right-2 z-10 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white p-1.5 rounded-full transition-colors"
+                    title="Delete image"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
                   <div className="relative h-48 bg-gray-100 dark:bg-gray-700">
                     <Image
                       src={image.data}

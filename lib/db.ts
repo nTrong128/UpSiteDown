@@ -56,3 +56,34 @@ export async function getAllImages(): Promise<UploadedImage[]> {
   `;
   return result as UploadedImage[];
 }
+
+export async function deleteImage(id: number): Promise<boolean> {
+  const sql = getSQL();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result: any = await sql`
+    DELETE FROM images WHERE id = ${id}
+    RETURNING id
+  `;
+  return result.length > 0;
+}
+
+export async function deleteImages(ids: number[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const sql = getSQL();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result: any = await sql`
+    DELETE FROM images WHERE id = ANY(${ids})
+    RETURNING id
+  `;
+  return result.length;
+}
+
+export async function deleteAllImages(): Promise<number> {
+  const sql = getSQL();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result: any = await sql`
+    DELETE FROM images
+    RETURNING id
+  `;
+  return result.length;
+}
