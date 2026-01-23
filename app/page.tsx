@@ -110,7 +110,10 @@ export default function Home() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       // Format file size errors to be human readable (e.g., "Max size is 10485760" -> "Max size is 10MB")
-      const formattedMessage = errorMessage.replace(/Max size is \d+$/, 'Max size is 10MB');
+      const formattedMessage = errorMessage.replace(
+        /Max size is (\d+)$/,
+        (_, bytes) => `Max size is ${Math.round(parseInt(bytes, 10) / (1024 * 1024))}MB`
+      );
       setError('Upload failed: ' + formattedMessage);
     } finally {
       setUploading(false);

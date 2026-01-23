@@ -90,6 +90,7 @@ export async function resizeImageIfNeeded(
         // Last resort: aggressive compression
         canvas.width = Math.round(width * 0.5);
         canvas.height = Math.round(height * 0.5);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         resultBlob = await new Promise<Blob | null>((res) => {
           canvas.toBlob((blob) => res(blob), 'image/jpeg', 0.5);
