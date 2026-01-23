@@ -1,10 +1,16 @@
 import { neon } from '@neondatabase/serverless';
 
-if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL environment variable is not set');
-}
+let sqlClient: ReturnType<typeof neon> | null = null;
 
-export const sql = neon(process.env.DATABASE_URL);
+function getSQL() {
+  if (!sqlClient) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL environment variable is not set');
+    }
+    sqlClient = neon(process.env.DATABASE_URL);
+  }
+  return sqlClient;
+}
 
 export interface UploadedImage {
   id: number;
@@ -16,6 +22,7 @@ export interface UploadedImage {
 }
 
 export async function initDatabase() {
+  const sql = getSQL();
   // Create the images table if it doesn't exist
   await sql`
     CREATE TABLE IF NOT EXISTS images (
@@ -30,15 +37,17 @@ export async function initDatabase() {
 }
 
 export async function saveImage(filename: string, originalName: string, size: number, data: string) {
+  const sql = getSQL();
   const result = await sql`
     INSERT INTO images (filename, original_name, size, data)
     VALUES (${filename}, ${originalName}, ${size}, ${data})
     RETURNING id, filename, original_name, size, upload_date
-  `;
+  ` as any;
   return result[0];
 }
 
 export async function getAllImages(): Promise<UploadedImage[]> {
+  const sql = getSQL();
   const result = await sql`
     SELECT id, filename, original_name, size, upload_date, data
     FROM images
