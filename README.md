@@ -92,14 +92,34 @@ Vercel automatically detects Next.js and configures everything correctly.
 
 ### CI/CD Pipeline
 
-This repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that:
-- Runs on every push to main and pull requests
-- Installs dependencies
-- Runs linter
-- Builds the application
-- Uploads build artifacts
+This repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically deploys to Vercel:
 
-The pipeline validates that your code builds successfully before merging.
+**On Pull Requests:**
+- Installs dependencies and runs linter
+- Builds the application
+- Deploys a preview to Vercel
+- Comments the preview URL on the PR
+
+**On Push to Main:**
+- Installs dependencies and runs linter
+- Builds the application
+- Deploys to production on Vercel
+
+#### Required GitHub Secrets
+
+To enable Vercel deployment, add these secrets to your repository:
+
+1. **`VERCEL_TOKEN`**: Your Vercel personal access token
+   - Get it from [Vercel Account Settings](https://vercel.com/account/tokens)
+
+2. **`VERCEL_ORG_ID`**: Your Vercel organization/team ID
+   - Run `vercel link` locally, then check `.vercel/project.json`
+
+3. **`VERCEL_PROJECT_ID`**: Your Vercel project ID
+   - Run `vercel link` locally, then check `.vercel/project.json`
+
+4. **`DATABASE_URL`** (optional): Your Neon database connection string
+   - Required for the app to function, but builds will work without it
 
 ---
 
