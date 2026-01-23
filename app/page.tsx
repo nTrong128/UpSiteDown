@@ -23,7 +23,7 @@ export default function Home() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg']
+      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp']
     },
     maxFiles: 100,
   });
@@ -140,7 +140,7 @@ export default function Home() {
               </div>
             )}
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              PNG, JPG, GIF, WebP, SVG (max 100 files)
+              PNG, JPG, GIF, WebP (max 100 files, 10MB per file)
             </p>
           </div>
         </div>

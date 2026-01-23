@@ -38,12 +38,12 @@ export async function initDatabase() {
 
 export async function saveImage(filename: string, originalName: string, size: number, data: string) {
   const sql = getSQL();
-  const result = await sql`
+  const result: any = await sql`
     INSERT INTO images (filename, original_name, size, data)
     VALUES (${filename}, ${originalName}, ${size}, ${data})
     RETURNING id, filename, original_name, size, upload_date
-  ` as any;
-  return result[0];
+  `;
+  return result[0] as { id: number; filename: string; original_name: string; size: number; upload_date: Date };
 }
 
 export async function getAllImages(): Promise<UploadedImage[]> {
