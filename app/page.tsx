@@ -2,13 +2,14 @@
 
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { CloudUpload, FileImage, CheckCircle2, AlertCircle, Loader2, X } from 'lucide-react';
+import { CloudUpload, FileImage, CheckCircle2, AlertCircle, Loader2, X, ImageDown } from 'lucide-react';
 import { useEdgeStore } from '@/lib/edgestore-context';
 import { Navigation } from '@/components/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { resizeImageIfNeeded, MAX_FILE_SIZE } from '@/lib/image-resize';
 
 export default function Home() {
   const [uploading, setUploading] = useState(false);
@@ -16,10 +17,24 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [resizeNotice, setResizeNotice] = useState<string | null>(null);
   const { edgestore } = useEdgeStore();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setError(null);
+    setResizeNotice(null);
+    
+    // Check for oversized files
+    const oversizedFiles = acceptedFiles.filter(file => file.size > MAX_FILE_SIZE);
+    if (oversizedFiles.length > 0) {
+      const fileNames = oversizedFiles.map(f => f.name).slice(0, 3);
+      const moreCount = oversizedFiles.length - 3;
+      const message = moreCount > 0 
+        ? `${fileNames.join(', ')} and ${moreCount} more will be resized to fit 10MB limit`
+        : `${fileNames.join(', ')} will be resized to fit 10MB limit`;
+      setResizeNotice(message);
+    }
+    
     if (acceptedFiles.length > 100) {
       setError('Maximum 100 images allowed at a time');
       setSelectedFiles(acceptedFiles.slice(0, 100));
@@ -52,12 +67,15 @@ export default function Home() {
       const uploadedFiles: { originalName: string; size: number; url: string }[] = [];
       
       const uploadFile = async (file: File) => {
-        const res = await edgestore.publicFiles.upload({ file });
+        // Resize image if needed
+        const { file: processedFile } = await resizeImageIfNeeded(file);
+        
+        const res = await edgestore.publicFiles.upload({ file: processedFile });
         completedUploads++;
         setUploadProgress(Math.round((completedUploads / totalFiles) * 100));
         return {
           originalName: file.name,
-          size: file.size,
+          size: processedFile.size,
           url: res.url,
         };
       };
@@ -84,12 +102,16 @@ export default function Home() {
         setUploadedCount(data.count);
         setSelectedFiles([]);
         setUploadProgress(0);
+        setResizeNotice(null);
         setTimeout(() => setUploadedCount(0), 3000);
       } else {
         setError(data.error || 'Upload failed');
       }
     } catch (err) {
-      setError('Upload failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      // Format file size errors to be human readable (e.g., "Max size is 10485760" -> "Max size is 10MB")
+      const formattedMessage = errorMessage.replace(/Max size is \d+$/, 'Max size is 10MB');
+      setError('Upload failed: ' + formattedMessage);
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -240,6 +262,18 @@ export default function Home() {
                 <span className="font-medium">
                   Successfully uploaded {uploadedCount} image{uploadedCount > 1 ? 's' : ''}!
                 </span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Resize Notice */}
+        {resizeNotice && (
+          <Card className="mt-6 border-blue-500/50 bg-blue-500/10 animate-scaleIn">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400">
+                <ImageDown className="h-5 w-5" />
+                <span className="font-medium">{resizeNotice}</span>
               </div>
             </CardContent>
           </Card>
