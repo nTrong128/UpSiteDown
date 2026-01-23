@@ -102,3 +102,25 @@ export async function getAllImages(): Promise<UploadedImage[]> {
   `;
   return result as UploadedImage[];
 }
+
+export async function getImageById(id: number): Promise<UploadedImage | null> {
+  const sql = getSQL();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result: any = await sql`
+    SELECT id, filename, original_name, size, upload_date, url
+    FROM images
+    WHERE id = ${id}
+  `;
+  return result.length > 0 ? (result[0] as UploadedImage) : null;
+}
+
+export async function deleteImage(id: number): Promise<boolean> {
+  const sql = getSQL();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result: any = await sql`
+    DELETE FROM images
+    WHERE id = ${id}
+    RETURNING id
+  `;
+  return result.length > 0;
+}
