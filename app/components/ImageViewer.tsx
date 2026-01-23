@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { downloadImage } from '../../lib/download';
 
 interface ImageViewerProps {
   isOpen: boolean;
@@ -124,49 +125,7 @@ export default function ImageViewer({
   }, []);
 
   const handleDownload = useCallback(async () => {
-    try {
-      // Validate URL is from same origin or a trusted source
-      const urlObj = new URL(imageUrl, window.location.origin);
-      const isSameOrigin = urlObj.origin === window.location.origin;
-      
-      // Properly validate trusted hosts - must be exact domain or subdomain
-      const trustedDomains = ['edgestore.dev', 'edgestore.io'];
-      const hostnameParts = urlObj.hostname.toLowerCase().split('.');
-      const isTrustedHost = trustedDomains.some(domain => {
-        const domainParts = domain.split('.');
-        // Check if hostname ends with the exact domain (e.g., 'files.edgestore.dev' or 'edgestore.dev')
-        if (hostnameParts.length < domainParts.length) return false;
-        const hostSuffix = hostnameParts.slice(-domainParts.length).join('.');
-        return hostSuffix === domain;
-      });
-      
-      if (!isSameOrigin && !isTrustedHost) {
-        // For untrusted URLs, just open in new tab instead of downloading
-        window.open(imageUrl, '_blank');
-        return;
-      }
-
-      const response = await fetch(imageUrl);
-      
-      // Verify content type is an image
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.startsWith('image/')) {
-        throw new Error('Invalid content type');
-      }
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = imageName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch {
-      // Fallback: open in new tab
-      window.open(imageUrl, '_blank');
-    }
+    await downloadImage(imageUrl, imageName);
   }, [imageUrl, imageName]);
 
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
@@ -222,7 +181,7 @@ export default function ImageViewer({
         </button>
       )}
 
-      {/* Zoom controls */}
+      {/* Zoom controls with download button */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-white/10 rounded-full px-4 py-2">
         <button
           onClick={handleZoomOut}
@@ -260,23 +219,22 @@ export default function ImageViewer({
             />
           </svg>
         </button>
+        <div className="w-px h-6 bg-white/30 mx-2" />
+        <button
+          onClick={handleDownload}
+          className="p-2 rounded-full hover:bg-white/20 text-white transition-colors"
+          title="Download image"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+            />
+          </svg>
+        </button>
       </div>
-
-      {/* Download button */}
-      <button
-        onClick={handleDownload}
-        className="absolute bottom-4 right-4 z-10 p-3 rounded-full bg-indigo-600/80 hover:bg-indigo-600 text-white transition-colors"
-        title="Download image"
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-          />
-        </svg>
-      </button>
 
       {/* Image name */}
       <div className="absolute bottom-4 left-4 z-10 text-white/80 text-sm max-w-[200px] truncate">
