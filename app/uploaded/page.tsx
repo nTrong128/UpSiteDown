@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import ImageViewer from '../components/ImageViewer';
 
 interface UploadedImage {
   id: number;
@@ -18,6 +19,7 @@ export default function UploadedPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [selectedImage, setSelectedImage] = useState<UploadedImage | null>(null);
 
   useEffect(() => {
     fetchImages();
@@ -41,7 +43,7 @@ export default function UploadedPage() {
     }
   };
 
-  const handleDelete = async (imageId: number, imageName: string) => {
+  const handleDelete = useCallback(async (imageId: number, imageName: string) => {
     if (!confirm(`Are you sure you want to delete "${imageName}"?`)) {
       return;
     }
@@ -57,6 +59,10 @@ export default function UploadedPage() {
       if (response.ok) {
         // Remove the deleted image from the state
         setImages((prev) => prev.filter((img) => img.id !== imageId));
+        // Close the viewer if the deleted image was being viewed
+        setSelectedImage((prevSelected) => 
+          prevSelected?.id === imageId ? null : prevSelected
+        );
       } else {
         alert(data.error || 'Failed to delete image');
       }
@@ -65,7 +71,21 @@ export default function UploadedPage() {
     } finally {
       setDeletingId(null);
     }
-  };
+  }, []);
+
+  const handleImageClick = useCallback((image: UploadedImage) => {
+    setSelectedImage(image);
+  }, []);
+
+  const handleCloseViewer = useCallback(() => {
+    setSelectedImage(null);
+  }, []);
+
+  const handleDeleteFromViewer = useCallback(() => {
+    if (selectedImage) {
+      handleDelete(selectedImage.id, selectedImage.original_name);
+    }
+  }, [selectedImage, handleDelete]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
@@ -159,9 +179,41 @@ export default function UploadedPage() {
               {images.map((image) => (
                 <div
                   key={image.id}
-                  className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                  className="image-card bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer relative group"
                 >
-                  <div className="relative h-48 bg-gray-100 dark:bg-gray-700">
+                  {/* Delete button - top right, visible on hover */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(image.id, image.original_name);
+                    }}
+                    disabled={deletingId === image.id}
+                    className="delete-overlay absolute top-2 right-2 z-10 p-2 rounded-full bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed text-white transition-colors shadow-lg"
+                    title="Delete image"
+                  >
+                    {deletingId === image.id ? (
+                      <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                    ) : (
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                  
+                  <div
+                    className="relative h-48 bg-gray-100 dark:bg-gray-700"
+                    onClick={() => handleImageClick(image)}
+                  >
                     <Image
                       src={image.url}
                       alt={image.original_name}
@@ -169,8 +221,24 @@ export default function UploadedPage() {
                       className="object-contain"
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                      <svg
+                        className="w-10 h-10 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
+                        />
+                      </svg>
+                    </div>
                   </div>
-                  <div className="p-4">
+                  <div className="p-4" onClick={() => handleImageClick(image)}>
                     <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
                       {image.original_name}
                     </h3>
@@ -180,40 +248,24 @@ export default function UploadedPage() {
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       {new Date(image.upload_date).toLocaleDateString()}
                     </p>
-                    <button
-                      onClick={() => handleDelete(image.id, image.original_name)}
-                      disabled={deletingId === image.id}
-                      className="mt-3 w-full bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed text-white text-sm font-medium py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2"
-                    >
-                      {deletingId === image.id ? (
-                        <>
-                          <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
-                          Deleting...
-                        </>
-                      ) : (
-                        <>
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                          Delete
-                        </>
-                      )}
-                    </button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
+        )}
+
+        {/* Full screen image viewer */}
+        {selectedImage && (
+          <ImageViewer
+            key={selectedImage.id}
+            isOpen={!!selectedImage}
+            imageUrl={selectedImage.url}
+            imageName={selectedImage.original_name}
+            onClose={handleCloseViewer}
+            onDelete={handleDeleteFromViewer}
+            isDeleting={deletingId === selectedImage.id}
+          />
         )}
       </main>
     </div>
