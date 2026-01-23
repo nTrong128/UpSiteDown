@@ -38,6 +38,7 @@ export async function initDatabase() {
 
 export async function saveImage(filename: string, originalName: string, size: number, data: string) {
   const sql = getSQL();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result: any = await sql`
     INSERT INTO images (filename, original_name, size, data)
     VALUES (${filename}, ${originalName}, ${size}, ${data})
