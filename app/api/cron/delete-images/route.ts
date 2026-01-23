@@ -4,7 +4,7 @@ import { initDatabase, deleteAllImages } from '@/lib/db';
 // This endpoint is designed to be called by a cron job scheduler
 // It deletes all images from the database
 // For Vercel Cron, configure in vercel.json with schedule: "*/5 * * * *" (every 5 minutes)
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     // Verify the request is from a valid cron job source
     // Check for cron secret in authorization header if configured
@@ -37,4 +37,9 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// GET endpoint for Vercel Cron compatibility (Vercel Cron uses GET requests)
+export async function GET(request: NextRequest) {
+  return POST(request);
 }

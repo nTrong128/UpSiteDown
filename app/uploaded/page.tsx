@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 
+const SUCCESS_MESSAGE_DURATION = 3000;
+
 interface UploadedImage {
   id: number;
   filename: string;
@@ -88,7 +90,7 @@ export default function UploadedPage() {
           newSet.delete(id);
           return newSet;
         });
-        setTimeout(() => setSuccessMessage(null), 3000);
+        setTimeout(() => setSuccessMessage(null), SUCCESS_MESSAGE_DURATION);
       } else {
         setError(data.error || 'Failed to delete image');
       }
@@ -120,7 +122,7 @@ export default function UploadedPage() {
         setSuccessMessage(`Deleted ${data.deletedCount} image(s) successfully`);
         setImages((prev) => prev.filter((img) => !selectedIds.has(img.id)));
         setSelectedIds(new Set());
-        setTimeout(() => setSuccessMessage(null), 3000);
+        setTimeout(() => setSuccessMessage(null), SUCCESS_MESSAGE_DURATION);
       } else {
         setError(data.error || 'Failed to delete images');
       }
