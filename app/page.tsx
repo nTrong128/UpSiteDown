@@ -2,8 +2,13 @@
 
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import Link from 'next/link';
+import { CloudUpload, FileImage, CheckCircle2, AlertCircle, Loader2, X } from 'lucide-react';
 import { useEdgeStore } from '@/lib/edgestore-context';
+import { Navigation } from '@/components/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 
 export default function Home() {
   const [uploading, setUploading] = useState(false);
@@ -91,147 +96,165 @@ export default function Home() {
     }
   };
 
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      {/* Navigation */}
-      <nav className="bg-white dark:bg-gray-800 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                UpSiteDown
-              </h1>
-            </div>
-            <div className="flex space-x-4">
-              <Link
-                href="/"
-                className="text-gray-900 dark:text-gray-100 px-3 py-2 rounded-md text-sm font-medium bg-gray-100 dark:bg-gray-700"
-              >
-                Upload
-              </Link>
-              <Link
-                href="/uploaded"
-                className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Uploaded Images
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
+      <Navigation />
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-12">
-        <div className="text-center mb-8">
-          <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+        <div className="text-center mb-8 animate-slideDown">
+          <h2 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 dark:to-purple-400 bg-clip-text text-transparent mb-3">
             Upload Your Images
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-muted-foreground text-lg">
             Upload up to 100 images at once. Drag and drop or click to select.
           </p>
         </div>
 
-        {/* Dropzone */}
-        <div
-          {...getRootProps()}
-          className={`border-4 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${
-            isDragActive
-              ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-              : 'border-gray-300 dark:border-gray-600 hover:border-indigo-400 dark:hover:border-indigo-500'
-          }`}
-        >
-          <input {...getInputProps()} />
-          <div className="space-y-4">
-            <svg
-              className="mx-auto h-24 w-24 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+        {/* Dropzone Card */}
+        <Card className="animate-slideUp">
+          <CardContent className="pt-6">
+            <div
+              {...getRootProps()}
+              className={cn(
+                "dropzone border-2 border-dashed rounded-xl p-12 text-center cursor-pointer",
+                isDragActive && "active border-primary bg-primary/10"
+              )}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-              />
-            </svg>
-            {isDragActive ? (
-              <p className="text-xl text-indigo-600 dark:text-indigo-400 font-medium">
-                Drop the images here...
-              </p>
-            ) : (
-              <div>
-                <p className="text-xl text-gray-700 dark:text-gray-300 font-medium">
-                  Drag and drop images here
-                </p>
-                <p className="text-gray-500 dark:text-gray-400 mt-2">
-                  or click to select files from your computer
+              <input {...getInputProps()} />
+              <div className="space-y-4">
+                <div className={cn(
+                  "mx-auto h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center transition-transform duration-300",
+                  isDragActive && "scale-110"
+                )}>
+                  <CloudUpload className={cn(
+                    "h-10 w-10 text-primary transition-transform duration-300",
+                    isDragActive && "animate-bounce"
+                  )} />
+                </div>
+                {isDragActive ? (
+                  <p className="text-xl text-primary font-medium animate-pulse">
+                    Drop the images here...
+                  </p>
+                ) : (
+                  <div>
+                    <p className="text-xl font-medium text-foreground">
+                      Drag and drop images here
+                    </p>
+                    <p className="text-muted-foreground mt-2">
+                      or click to select files from your computer
+                    </p>
+                  </div>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  PNG, JPG, GIF, WebP (max 100 files, 10MB per file)
                 </p>
               </div>
-            )}
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              PNG, JPG, GIF, WebP (max 100 files, 10MB per file)
-            </p>
-          </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Selected Files */}
         {selectedFiles.length > 0 && (
-          <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Selected Files ({selectedFiles.length})
-            </h3>
-            <div className="max-h-40 overflow-y-auto space-y-2">
-              {selectedFiles.map((file, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 py-1"
-                >
-                  <span className="truncate flex-1">{file.name}</span>
-                  <span className="ml-4 text-gray-500">
-                    {(file.size / 1024).toFixed(1)} KB
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Progress Bar */}
-            {uploading && uploadProgress > 0 && (
-              <div className="mt-4">
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+          <Card className="mt-6 animate-scaleIn">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileImage className="h-5 w-5 text-primary" />
+                Selected Files ({selectedFiles.length})
+              </CardTitle>
+              <CardDescription>
+                Review your files before uploading
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="max-h-48 overflow-y-auto space-y-2 mb-4">
+                {selectedFiles.map((file, index) => (
                   <div
-                    className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 text-center">
-                  Uploading... {uploadProgress}%
-                </p>
+                    key={index}
+                    className="flex items-center justify-between text-sm py-2 px-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <FileImage className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="truncate text-foreground">{file.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground text-xs whitespace-nowrap">
+                        {(file.size / 1024).toFixed(1)} KB
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeFile(index)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            )}
 
-            <button
-              onClick={handleUpload}
-              disabled={uploading}
-              className="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-            >
-              {uploading ? 'Uploading...' : `Upload ${selectedFiles.length} Image${selectedFiles.length > 1 ? 's' : ''}`}
-            </button>
-          </div>
+              {/* Progress Bar */}
+              {uploading && uploadProgress > 0 && (
+                <div className="mb-4 animate-fadeIn">
+                  <Progress value={uploadProgress} className="h-2" />
+                  <p className="text-sm text-muted-foreground mt-2 text-center flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Uploading... {uploadProgress}%
+                  </p>
+                </div>
+              )}
+
+              <Button
+                onClick={handleUpload}
+                disabled={uploading}
+                className="w-full"
+                size="lg"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <CloudUpload className="h-4 w-4" />
+                    Upload {selectedFiles.length} Image{selectedFiles.length > 1 ? 's' : ''}
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
         )}
 
         {/* Success Message */}
         {uploadedCount > 0 && (
-          <div className="mt-6 bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg">
-            Successfully uploaded {uploadedCount} image{uploadedCount > 1 ? 's' : ''}!
-          </div>
+          <Card className="mt-6 border-green-500/50 bg-green-500/10 animate-scaleIn">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3 text-green-600 dark:text-green-400">
+                <CheckCircle2 className="h-5 w-5" />
+                <span className="font-medium">
+                  Successfully uploaded {uploadedCount} image{uploadedCount > 1 ? 's' : ''}!
+                </span>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Error Message */}
         {error && (
-          <div className="mt-6 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
-            {error}
-          </div>
+          <Card className="mt-6 border-destructive/50 bg-destructive/10 animate-scaleIn">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3 text-destructive">
+                <AlertCircle className="h-5 w-5" />
+                <span className="font-medium">{error}</span>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </main>
     </div>
