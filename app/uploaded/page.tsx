@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import ImageViewer from '../components/ImageViewer';
+import { downloadImage } from '../../lib/download';
 
 interface UploadedImage {
   id: number;
@@ -86,6 +87,10 @@ export default function UploadedPage() {
       handleDelete(selectedImage.id, selectedImage.original_name);
     }
   }, [selectedImage, handleDelete]);
+
+  const handleDownload = useCallback(async (imageUrl: string, imageName: string) => {
+    await downloadImage(imageUrl, imageName);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
@@ -248,6 +253,32 @@ export default function UploadedPage() {
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       {new Date(image.upload_date).toLocaleDateString()}
                     </p>
+                  </div>
+                  {/* Download button below image */}
+                  <div className="px-4 pb-4">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload(image.url, image.original_name);
+                      }}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors"
+                      title="Download image"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                        />
+                      </svg>
+                      Download
+                    </button>
                   </div>
                 </div>
               ))}
