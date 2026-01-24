@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import { 
   Download, 
   Trash2, 
@@ -35,7 +34,6 @@ interface UploadedImage {
 }
 
 export default function UploadedPage() {
-  const router = useRouter();
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,10 +91,6 @@ export default function UploadedPage() {
       setDeletingId(null);
     }
   }, []);
-
-  const handleImageClick = useCallback((image: UploadedImage) => {
-    router.push(`/uploaded/${image.id}`);
-  }, [router]);
 
   const handleDownload = useCallback(async (imageUrl: string, imageName: string) => {
     await downloadImage(imageUrl, imageName);
@@ -353,48 +347,80 @@ export default function UploadedPage() {
                     </Button>
                   )}
                   
-                  <div
-                    className="relative h-48 bg-muted dark:bg-muted/50"
-                    onClick={() => isSelectMode ? toggleSelection(image.id) : handleImageClick(image)}
-                  >
-                    <Image
-                      src={image.url}
-                      alt={image.original_name}
-                      fill
-                      className="object-contain transition-transform duration-300 group-hover:scale-105"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    />
-                    {/* Hover overlay */}
-                    {!isSelectMode && (
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/20 backdrop-blur-sm rounded-full p-3">
-                          <ZoomIn className="w-6 h-6 text-white" />
+                  {isSelectMode ? (
+                    <div
+                      className="relative h-48 bg-muted dark:bg-muted/50"
+                      onClick={() => toggleSelection(image.id)}
+                    >
+                      <Image
+                        src={image.url}
+                        alt={image.original_name}
+                        fill
+                        className="object-contain transition-transform duration-300 group-hover:scale-105"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                      {/* Selection overlay */}
+                      {selectedIds.has(image.id) && (
+                        <div className="absolute inset-0 bg-primary/10 transition-all duration-300" />
+                      )}
+                    </div>
+                  ) : (
+                    <Link href={`/uploaded/${image.id}`} className="block">
+                      <div className="relative h-48 bg-muted dark:bg-muted/50">
+                        <Image
+                          src={image.url}
+                          alt={image.original_name}
+                          fill
+                          className="object-contain transition-transform duration-300 group-hover:scale-105"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        />
+                        {/* Hover overlay */}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/20 backdrop-blur-sm rounded-full p-3">
+                            <ZoomIn className="w-6 h-6 text-white" />
+                          </div>
                         </div>
                       </div>
-                    )}
-                    {/* Selection overlay */}
-                    {isSelectMode && selectedIds.has(image.id) && (
-                      <div className="absolute inset-0 bg-primary/10 transition-all duration-300" />
-                    )}
-                  </div>
-                  <CardContent 
-                    className="py-3 cursor-pointer" 
-                    onClick={() => isSelectMode ? toggleSelection(image.id) : handleImageClick(image)}
-                  >
-                    <h3 className="text-sm font-medium truncate mb-2">
-                      {image.original_name}
-                    </h3>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <HardDrive className="h-3 w-3" />
-                        {(image.size / 1024).toFixed(1)} KB
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {new Date(image.upload_date).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </CardContent>
+                    </Link>
+                  )}
+                  {isSelectMode ? (
+                    <CardContent 
+                      className="py-3 cursor-pointer" 
+                      onClick={() => toggleSelection(image.id)}
+                    >
+                      <h3 className="text-sm font-medium truncate mb-2">
+                        {image.original_name}
+                      </h3>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <HardDrive className="h-3 w-3" />
+                          {(image.size / 1024).toFixed(1)} KB
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(image.upload_date).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </CardContent>
+                  ) : (
+                    <Link href={`/uploaded/${image.id}`} className="block">
+                      <CardContent className="py-3 cursor-pointer">
+                        <h3 className="text-sm font-medium truncate mb-2">
+                          {image.original_name}
+                        </h3>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <HardDrive className="h-3 w-3" />
+                            {(image.size / 1024).toFixed(1)} KB
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {new Date(image.upload_date).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Link>
+                  )}
                   <CardFooter className="pt-0 pb-4">
                     <Button
                       variant="secondary"
