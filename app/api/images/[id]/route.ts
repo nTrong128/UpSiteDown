@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initDatabase, getImageById, deleteImage } from '@/lib/db';
-import { getEdgeStoreBackendClient } from '@/lib/edgestore';
+import { deleteFromCloudinary, extractPublicIdFromUrl } from '@/lib/cloudinary';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -21,7 +21,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Get the image to retrieve the URL for EdgeStore deletion
+    // Get the image to retrieve the URL for Cloudinary deletion
     const image = await getImageById(imageId);
 
     if (!image) {
@@ -31,15 +31,15 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Delete from EdgeStore first
+    // Delete from Cloudinary first
     try {
-      const backendClient = getEdgeStoreBackendClient();
-      await backendClient.publicFiles.deleteFile({
-        url: image.url,
-      });
-    } catch (edgeStoreError) {
-      console.error('EdgeStore delete error:', edgeStoreError);
-      // Continue with database deletion even if EdgeStore fails
+      const publicId = extractPublicIdFromUrl(image.url);
+      if (publicId) {
+        await deleteFromCloudinary(publicId);
+      }
+    } catch (cloudinaryError) {
+      console.error('Cloudinary delete error:', cloudinaryError);
+      // Continue with database deletion even if Cloudinary fails
       // (the file might have been manually deleted or expired)
     }
 

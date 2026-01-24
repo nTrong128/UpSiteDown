@@ -1,11 +1,28 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { EdgeStoreProvider } from "@/lib/edgestore-context";
 import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
   title: "UpSiteDown - Image Upload Service",
-  description: "A site to upload temporary images to download from somewhere else.",
+  description: "Upload and share temporary images easily. Upload up to 100 images at once with drag and drop support.",
+  keywords: ["image upload", "file sharing", "temporary images", "cloud storage", "image hosting"],
+  authors: [{ name: "UpSiteDown" }],
+  openGraph: {
+    title: "UpSiteDown - Image Upload Service",
+    description: "Upload and share temporary images easily. Upload up to 100 images at once with drag and drop support.",
+    type: "website",
+    locale: "en_US",
+    siteName: "UpSiteDown",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "UpSiteDown - Image Upload Service",
+    description: "Upload and share temporary images easily. Upload up to 100 images at once with drag and drop support.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
@@ -22,7 +39,7 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          <EdgeStoreProvider>{children}</EdgeStoreProvider>
+          {children}
         </ThemeProvider>
       </body>
     </html>
