@@ -22,8 +22,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/icon.svg",
-        width: 512,
-        height: 512,
+        width: 32,
+        height: 32,
         alt: "UpSiteDown - Image Upload Service",
       },
     ],

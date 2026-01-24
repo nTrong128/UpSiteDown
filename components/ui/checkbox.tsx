@@ -27,6 +27,19 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
       }
     };
 
+    // Compute base classes and state-dependent classes separately
+    const baseClasses = cn(
+      "h-5 w-5 shrink-0 rounded-md border border-primary ring-offset-background transition-all",
+      "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+      "cursor-pointer flex items-center justify-center",
+      props.disabled && "cursor-not-allowed opacity-50"
+    );
+
+    // State classes applied after custom className to ensure proper state styling
+    const stateClasses = checked 
+      ? "bg-primary text-primary-foreground" 
+      : "bg-background hover:bg-accent";
+
     return (
       <div className="relative inline-flex items-center">
         <input
@@ -41,18 +54,11 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
           role="checkbox"
           aria-checked={checked}
           tabIndex={0}
-          className={cn(
-            "h-5 w-5 shrink-0 rounded-md border border-primary ring-offset-background transition-all",
-            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-            "cursor-pointer flex items-center justify-center",
-            className,
-            checked ? "!bg-primary !text-primary-foreground" : "bg-background hover:bg-accent",
-            props.disabled && "cursor-not-allowed opacity-50"
-          )}
+          className={cn(baseClasses, className, stateClasses)}
           onClick={handleClick}
           onKeyDown={handleKeyDown}
         >
-          {checked && <Check className="h-4 w-4 text-white" />}
+          {checked && <Check className="h-4 w-4 text-primary-foreground" />}
         </div>
       </div>
     )
