@@ -10,11 +10,11 @@ export async function downloadImage(imageUrl: string, imageName: string): Promis
     const isSameOrigin = urlObj.origin === window.location.origin;
     
     // Properly validate trusted hosts - must be exact domain or subdomain
-    const trustedDomains = ['edgestore.dev', 'edgestore.io'];
+    const trustedDomains = ['cloudinary.com'];
     const hostnameParts = urlObj.hostname.toLowerCase().split('.');
     const isTrustedHost = trustedDomains.some(domain => {
       const domainParts = domain.split('.');
-      // Check if hostname ends with the exact domain (e.g., 'files.edgestore.dev' or 'edgestore.dev')
+      // Check if hostname ends with the exact domain (e.g., 'res.cloudinary.com' or 'cloudinary.com')
       if (hostnameParts.length < domainParts.length) return false;
       const hostSuffix = hostnameParts.slice(-domainParts.length).join('.');
       return hostSuffix === domain;

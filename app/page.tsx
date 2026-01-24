@@ -3,7 +3,6 @@
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { CloudUpload, FileImage, CheckCircle2, AlertCircle, Loader2, X, ImageDown } from 'lucide-react';
-import { useEdgeStore } from '@/lib/edgestore-context';
 import { Navigation } from '@/components/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -18,7 +17,6 @@ export default function Home() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [resizeNotice, setResizeNotice] = useState<string | null>(null);
-  const { edgestore } = useEdgeStore();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setError(null);
@@ -62,7 +60,7 @@ export default function Home() {
       const totalFiles = selectedFiles.length;
       let completedUploads = 0;
 
-      // Upload files to Edge Store in parallel with concurrency limit
+      // Upload files to Cloudinary in parallel with concurrency limit
       const CONCURRENCY_LIMIT = 5;
       const uploadedFiles: { originalName: string; size: number; url: string }[] = [];
       
@@ -70,13 +68,27 @@ export default function Home() {
         // Resize image if needed
         const { file: processedFile } = await resizeImageIfNeeded(file);
         
-        const res = await edgestore.publicFiles.upload({ file: processedFile });
+        // Upload to Cloudinary via our API
+        const formData = new FormData();
+        formData.append('file', processedFile);
+        
+        const res = await fetch('/api/cloudinary/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Upload failed');
+        }
+        
+        const data = await res.json();
         completedUploads++;
         setUploadProgress(Math.round((completedUploads / totalFiles) * 100));
         return {
           originalName: file.name,
           size: processedFile.size,
-          url: res.url,
+          url: data.url,
         };
       };
 

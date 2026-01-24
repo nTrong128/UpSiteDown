@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'files.edgestore.dev',
+        hostname: 'res.cloudinary.com',
         pathname: '/**',
       },
     ],
