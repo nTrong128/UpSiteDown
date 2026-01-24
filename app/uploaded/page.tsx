@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { 
   Download, 
   Trash2, 
@@ -17,7 +18,6 @@ import {
   Square,
   X
 } from 'lucide-react';
-import ImageViewer from '../components/ImageViewer';
 import { downloadImage } from '../../lib/download';
 import { Navigation } from '@/components/navigation';
 import { Button } from '@/components/ui/button';
@@ -35,11 +35,11 @@ interface UploadedImage {
 }
 
 export default function UploadedPage() {
+  const router = useRouter();
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [selectedImage, setSelectedImage] = useState<UploadedImage | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
@@ -84,10 +84,6 @@ export default function UploadedPage() {
       if (response.ok) {
         // Remove the deleted image from the state
         setImages((prev) => prev.filter((img) => img.id !== imageId));
-        // Close the viewer if the deleted image was being viewed
-        setSelectedImage((prevSelected) => 
-          prevSelected?.id === imageId ? null : prevSelected
-        );
       } else {
         alert(data.error || 'Failed to delete image');
       }
@@ -99,18 +95,8 @@ export default function UploadedPage() {
   }, []);
 
   const handleImageClick = useCallback((image: UploadedImage) => {
-    setSelectedImage(image);
-  }, []);
-
-  const handleCloseViewer = useCallback(() => {
-    setSelectedImage(null);
-  }, []);
-
-  const handleDeleteFromViewer = useCallback(() => {
-    if (selectedImage) {
-      handleDelete(selectedImage.id, selectedImage.original_name);
-    }
-  }, [selectedImage, handleDelete]);
+    router.push(`/uploaded/${image.id}`);
+  }, [router]);
 
   const handleDownload = useCallback(async (imageUrl: string, imageName: string) => {
     await downloadImage(imageUrl, imageName);
@@ -427,19 +413,6 @@ export default function UploadedPage() {
               ))}
             </div>
           </div>
-        )}
-
-        {/* Full screen image viewer */}
-        {selectedImage && (
-          <ImageViewer
-            key={selectedImage.id}
-            isOpen={!!selectedImage}
-            imageUrl={selectedImage.url}
-            imageName={selectedImage.original_name}
-            onClose={handleCloseViewer}
-            onDelete={handleDeleteFromViewer}
-            isDeleting={deletingId === selectedImage.id}
-          />
         )}
 
         {/* Bulk delete confirmation dialog */}
