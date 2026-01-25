@@ -11,6 +11,13 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  experimental: {
+    // Configure body size limit for Server Actions to 4MB
+    // This matches the MAX_FILE_SIZE used for client-side resizing
+    serverActions: {
+      bodySizeLimit: '4mb',
+    },
+  },
 };
 
 export default nextConfig;
