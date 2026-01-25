@@ -9,8 +9,11 @@ if (process.env.CLOUDINARY_URL) {
   });
 }
 
-/** Maximum file size in bytes (10MB) */
-export const MAX_FILE_SIZE = 10 * 1024 * 1024;
+/** Maximum file size in bytes (4MB)
+ * This limit ensures files stay under serverless function body size limits
+ * (e.g., Vercel has a 4.5MB limit for serverless functions)
+ */
+export const MAX_FILE_SIZE = 4 * 1024 * 1024;
 
 /** Allowed image MIME types */
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];

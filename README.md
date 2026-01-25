@@ -9,7 +9,7 @@ A site to upload temporary images to download from somewhere else.
 - Images stored in Cloudinary cloud storage
 - Image metadata stored in Neon serverless database
 - View all uploaded images in a gallery
-- Automatic image resizing for files over 10MB
+- Automatic image resizing for files over 4MB
 - Built with Next.js 16 and TypeScript
 
 ## Setup
@@ -58,10 +58,6 @@ A site to upload temporary images to download from somewhere else.
 - React Dropzone
 
 ## Deployment
-
-### Important: GitHub Pages Limitation
-
-This application **cannot be deployed to GitHub Pages** because it uses Next.js API routes (`/api/upload`, `/api/images`, and `/api/cloudinary`) that require a Node.js server runtime. GitHub Pages only supports static HTML/CSS/JavaScript files.
 
 ### Recommended Deployment Platforms
 

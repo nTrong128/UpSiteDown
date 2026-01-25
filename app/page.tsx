@@ -28,8 +28,8 @@ export default function Home() {
       const fileNames = oversizedFiles.map(f => f.name).slice(0, 3);
       const moreCount = oversizedFiles.length - 3;
       const message = moreCount > 0 
-        ? `${fileNames.join(', ')} and ${moreCount} more will be resized to fit 10MB limit`
-        : `${fileNames.join(', ')} will be resized to fit 10MB limit`;
+        ? `${fileNames.join(', ')} and ${moreCount} more will be resized to fit 4MB limit`
+        : `${fileNames.join(', ')} will be resized to fit 4MB limit`;
       setResizeNotice(message);
     }
     
@@ -121,7 +121,7 @@ export default function Home() {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      // Format file size errors to be human readable (e.g., "Max size is 10485760" -> "Max size is 10MB")
+      // Format file size errors to be human readable (e.g., "Max size is 4194304" -> "Max size is 4MB")
       const formattedMessage = errorMessage.replace(
         /Max size is (\d+)$/,
         (_, bytes) => `Max size is ${Math.round(parseInt(bytes, 10) / (1024 * 1024))}MB`
@@ -188,7 +188,7 @@ export default function Home() {
                   </div>
                 )}
                 <p className="text-sm text-muted-foreground">
-                  PNG, JPG, GIF, WebP (max 100 files, 10MB per file)
+                  PNG, JPG, GIF, WebP (max 100 files, 4MB per file)
                 </p>
               </div>
             </div>
