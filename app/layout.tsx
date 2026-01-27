@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   applicationName: "UpSiteDown",
   category: "Technology",
   manifest: "/manifest.json",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://upsitedown.vercel.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"),
   openGraph: {
     title: "UpSiteDown - Image Upload Service",
     description: "Upload and share temporary images easily. Upload up to 100 images at once with drag and drop support.",
