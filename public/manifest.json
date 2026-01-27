@@ -1,0 +1,16 @@
+{
+  "name": "UpSiteDown - Image Upload Service",
+  "short_name": "UpSiteDown",
+  "description": "Upload and share temporary images easily. Upload up to 100 images at once with drag and drop support.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}
