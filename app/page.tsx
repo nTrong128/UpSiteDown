@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { CloudUpload, FileImage, CheckCircle2, AlertCircle, Loader2, X, ImageDown } from 'lucide-react';
 import { Navigation } from '@/components/navigation';
@@ -48,6 +48,35 @@ export default function Home() {
     },
     maxFiles: 100,
   });
+
+  // Handle Ctrl+V paste for image uploads
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      const clipboardItems = event.clipboardData?.items;
+      if (!clipboardItems) return;
+
+      const imageFiles: File[] = [];
+      for (let i = 0; i < clipboardItems.length; i++) {
+        const item = clipboardItems[i];
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            imageFiles.push(file);
+          }
+        }
+      }
+
+      if (imageFiles.length > 0) {
+        event.preventDefault();
+        onDrop(imageFiles);
+      }
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, [onDrop]);
 
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return;
@@ -148,7 +177,7 @@ export default function Home() {
             Upload Your Images
           </h2>
           <p className="text-muted-foreground text-lg">
-            Upload up to 100 images at once. Drag and drop or click to select.
+            Upload up to 100 images at once. Drag and drop, click to select, or paste (Ctrl+V).
           </p>
         </div>
 
@@ -183,7 +212,7 @@ export default function Home() {
                       Drag and drop images here
                     </p>
                     <p className="text-muted-foreground mt-2">
-                      or click to select files from your computer
+                      or click to select files, or paste from clipboard (Ctrl+V)
                     </p>
                   </div>
                 )}
