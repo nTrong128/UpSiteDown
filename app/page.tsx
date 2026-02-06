@@ -2,13 +2,14 @@
 
 import { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { CloudUpload, FileImage, CheckCircle2, AlertCircle, Loader2, X, ImageDown } from 'lucide-react';
+import { CloudUpload, FileImage, CheckCircle2, AlertCircle, Loader2, Trash2, ImageDown } from 'lucide-react';
 import { Navigation } from '@/components/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { resizeImageIfNeeded, MAX_FILE_SIZE } from '@/lib/image-resize';
+import ImageViewer from './components/ImageViewer';
 
 export default function Home() {
   const [uploading, setUploading] = useState(false);
@@ -18,6 +19,7 @@ export default function Home() {
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [resizeNotice, setResizeNotice] = useState<string | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Map<string, string>>(new Map());
+  const [selectedPreview, setSelectedPreview] = useState<{ name: string; url: string } | null>(null);
 
   // Cleanup preview URLs when component unmounts
   useEffect(() => {
@@ -248,8 +250,24 @@ export default function Home() {
       setPreviewUrls(newPreviewUrls);
     }
     
+    // Close preview if it's the file being removed
+    if (selectedPreview?.name === fileToRemove.name) {
+      setSelectedPreview(null);
+    }
+    
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
+
+  const handlePreviewClick = useCallback((fileName: string) => {
+    const url = previewUrls.get(fileName);
+    if (url) {
+      setSelectedPreview({ name: fileName, url });
+    }
+  }, [previewUrls]);
+
+  const handleClosePreview = useCallback(() => {
+    setSelectedPreview(null);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
@@ -331,7 +349,11 @@ export default function Home() {
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       {/* Image Preview */}
                       {previewUrls.has(file.name) ? (
-                        <div className="shrink-0 w-12 h-12 rounded overflow-hidden bg-background border">
+                        <div 
+                          className="shrink-0 w-12 h-12 rounded overflow-hidden bg-background border cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                          onClick={() => handlePreviewClick(file.name)}
+                          title="Click to view fullscreen"
+                        >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={previewUrls.get(file.name)}
@@ -351,10 +373,11 @@ export default function Home() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all hover:bg-destructive/10 hover:text-destructive hover:scale-110"
                         onClick={() => removeFile(index)}
+                        title="Delete image"
                       >
-                        <X className="h-3 w-3" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -432,6 +455,16 @@ export default function Home() {
           </Card>
         )}
       </main>
+
+      {/* Full screen image viewer for preview */}
+      {selectedPreview && (
+        <ImageViewer
+          isOpen={!!selectedPreview}
+          imageUrl={selectedPreview.url}
+          imageName={selectedPreview.name}
+          onClose={handleClosePreview}
+        />
+      )}
     </div>
   );
 }
