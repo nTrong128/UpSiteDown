@@ -17,28 +17,97 @@ export default function Home() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [resizeNotice, setResizeNotice] = useState<string | null>(null);
+  const [previewUrls, setPreviewUrls] = useState<Map<string, string>>(new Map());
+
+  // Cleanup preview URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Function to handle duplicate filenames
+  const handleDuplicateFilenames = (newFiles: File[], existingFiles: File[]): File[] => {
+    const existingNames = new Set(existingFiles.map(f => f.name));
+    
+    return newFiles.map(file => {
+      let fileName = file.name;
+      let counter = 1;
+      
+      // Keep incrementing counter until we find a unique name
+      while (existingNames.has(fileName)) {
+        const lastDotIndex = file.name.lastIndexOf('.');
+        const nameWithoutExt = lastDotIndex > 0 ? file.name.substring(0, lastDotIndex) : file.name;
+        const extension = lastDotIndex > 0 ? file.name.substring(lastDotIndex) : '';
+        fileName = `${nameWithoutExt}(${counter})${extension}`;
+        counter++;
+      }
+      
+      // Add the new name to the set
+      existingNames.add(fileName);
+      
+      // If name changed, create a new File object with the new name
+      if (fileName !== file.name) {
+        return new File([file], fileName, { type: file.type });
+      }
+      return file;
+    });
+  };
+
+  // Function to create preview URLs for image files
+  const createPreviewUrls = (files: File[]): Map<string, string> => {
+    const newPreviewUrls = new Map<string, string>();
+    
+    files.forEach(file => {
+      if (file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file);
+        newPreviewUrls.set(file.name, url);
+      }
+    });
+    
+    return newPreviewUrls;
+  };
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setError(null);
     setResizeNotice(null);
     
-    // Check for oversized files
-    const oversizedFiles = acceptedFiles.filter(file => file.size > MAX_FILE_SIZE);
-    if (oversizedFiles.length > 0) {
-      const fileNames = oversizedFiles.map(f => f.name).slice(0, 3);
-      const moreCount = oversizedFiles.length - 3;
-      const message = moreCount > 0 
-        ? `${fileNames.join(', ')} and ${moreCount} more will be resized to fit 4MB limit`
-        : `${fileNames.join(', ')} will be resized to fit 4MB limit`;
-      setResizeNotice(message);
-    }
-    
-    if (acceptedFiles.length > 100) {
-      setError('Maximum 100 images allowed at a time');
-      setSelectedFiles(acceptedFiles.slice(0, 100));
-    } else {
-      setSelectedFiles(acceptedFiles);
-    }
+    setSelectedFiles(prevFiles => {
+      // Handle duplicate filenames
+      const filesWithUniqueNames = handleDuplicateFilenames(acceptedFiles, prevFiles);
+      
+      // Check for oversized files
+      const oversizedFiles = filesWithUniqueNames.filter(file => file.size > MAX_FILE_SIZE);
+      if (oversizedFiles.length > 0) {
+        const fileNames = oversizedFiles.map(f => f.name).slice(0, 3);
+        const moreCount = oversizedFiles.length - 3;
+        const message = moreCount > 0 
+          ? `${fileNames.join(', ')} and ${moreCount} more will be resized to fit 4MB limit`
+          : `${fileNames.join(', ')} will be resized to fit 4MB limit`;
+        setResizeNotice(message);
+      }
+      
+      // Combine with existing files
+      const allFiles = [...prevFiles, ...filesWithUniqueNames];
+      
+      if (allFiles.length > 100) {
+        setError('Maximum 100 images allowed at a time');
+        const limitedFiles = allFiles.slice(0, 100);
+        
+        // Create preview URLs only for new files
+        const newPreviews = createPreviewUrls(filesWithUniqueNames);
+        setPreviewUrls(prev => new Map([...prev, ...newPreviews]));
+        
+        return limitedFiles;
+      } else {
+        // Create preview URLs only for new files
+        const newPreviews = createPreviewUrls(filesWithUniqueNames);
+        setPreviewUrls(prev => new Map([...prev, ...newPreviews]));
+        
+        return allFiles;
+      }
+    });
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -144,6 +213,11 @@ export default function Home() {
         setSelectedFiles([]);
         setUploadProgress(0);
         setResizeNotice(null);
+        
+        // Clean up preview URLs
+        previewUrls.forEach((url) => URL.revokeObjectURL(url));
+        setPreviewUrls(new Map());
+        
         setTimeout(() => setUploadedCount(0), 3000);
       } else {
         setError(data.error || 'Upload failed');
@@ -163,6 +237,17 @@ export default function Home() {
   };
 
   const removeFile = (index: number) => {
+    const fileToRemove = selectedFiles[index];
+    
+    // Revoke the preview URL for this file
+    const previewUrl = previewUrls.get(fileToRemove.name);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      const newPreviewUrls = new Map(previewUrls);
+      newPreviewUrls.delete(fileToRemove.name);
+      setPreviewUrls(newPreviewUrls);
+    }
+    
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -237,14 +322,26 @@ export default function Home() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="max-h-48 overflow-y-auto space-y-2 mb-4">
+              <div className="max-h-96 overflow-y-auto space-y-2 mb-4">
                 {selectedFiles.map((file, index) => (
                   <div
                     key={index}
                     className="flex items-center justify-between text-sm py-2 px-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <FileImage className="h-4 w-4 text-muted-foreground shrink-0" />
+                      {/* Image Preview */}
+                      {previewUrls.has(file.name) ? (
+                        <div className="shrink-0 w-12 h-12 rounded overflow-hidden bg-background border">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={previewUrls.get(file.name)}
+                            alt={file.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <FileImage className="h-4 w-4 text-muted-foreground shrink-0" />
+                      )}
                       <span className="truncate text-foreground">{file.name}</span>
                     </div>
                     <div className="flex items-center gap-2">
