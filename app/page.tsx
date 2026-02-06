@@ -19,12 +19,13 @@ export default function Home() {
   const [resizeNotice, setResizeNotice] = useState<string | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Map<string, string>>(new Map());
 
-  // Cleanup preview URLs when component unmounts or files change
+  // Cleanup preview URLs when component unmounts
   useEffect(() => {
     return () => {
       previewUrls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [previewUrls]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Function to handle duplicate filenames
   const handleDuplicateFilenames = (newFiles: File[], existingFiles: File[]): File[] => {
@@ -72,39 +73,42 @@ export default function Home() {
     setError(null);
     setResizeNotice(null);
     
-    // Handle duplicate filenames
-    const filesWithUniqueNames = handleDuplicateFilenames(acceptedFiles, selectedFiles);
-    
-    // Check for oversized files
-    const oversizedFiles = filesWithUniqueNames.filter(file => file.size > MAX_FILE_SIZE);
-    if (oversizedFiles.length > 0) {
-      const fileNames = oversizedFiles.map(f => f.name).slice(0, 3);
-      const moreCount = oversizedFiles.length - 3;
-      const message = moreCount > 0 
-        ? `${fileNames.join(', ')} and ${moreCount} more will be resized to fit 4MB limit`
-        : `${fileNames.join(', ')} will be resized to fit 4MB limit`;
-      setResizeNotice(message);
-    }
-    
-    // Combine with existing files
-    const allFiles = [...selectedFiles, ...filesWithUniqueNames];
-    
-    if (allFiles.length > 100) {
-      setError('Maximum 100 images allowed at a time');
-      const limitedFiles = allFiles.slice(0, 100);
-      setSelectedFiles(limitedFiles);
+    setSelectedFiles(prevFiles => {
+      // Handle duplicate filenames
+      const filesWithUniqueNames = handleDuplicateFilenames(acceptedFiles, prevFiles);
       
-      // Create preview URLs for limited files
-      const newPreviews = createPreviewUrls(limitedFiles);
-      setPreviewUrls(newPreviews);
-    } else {
-      setSelectedFiles(allFiles);
+      // Check for oversized files
+      const oversizedFiles = filesWithUniqueNames.filter(file => file.size > MAX_FILE_SIZE);
+      if (oversizedFiles.length > 0) {
+        const fileNames = oversizedFiles.map(f => f.name).slice(0, 3);
+        const moreCount = oversizedFiles.length - 3;
+        const message = moreCount > 0 
+          ? `${fileNames.join(', ')} and ${moreCount} more will be resized to fit 4MB limit`
+          : `${fileNames.join(', ')} will be resized to fit 4MB limit`;
+        setResizeNotice(message);
+      }
       
-      // Create preview URLs for all files
-      const newPreviews = createPreviewUrls(allFiles);
-      setPreviewUrls(newPreviews);
-    }
-  }, [selectedFiles]);
+      // Combine with existing files
+      const allFiles = [...prevFiles, ...filesWithUniqueNames];
+      
+      if (allFiles.length > 100) {
+        setError('Maximum 100 images allowed at a time');
+        const limitedFiles = allFiles.slice(0, 100);
+        
+        // Create preview URLs only for new files
+        const newPreviews = createPreviewUrls(filesWithUniqueNames);
+        setPreviewUrls(prev => new Map([...prev, ...newPreviews]));
+        
+        return limitedFiles;
+      } else {
+        // Create preview URLs only for new files
+        const newPreviews = createPreviewUrls(filesWithUniqueNames);
+        setPreviewUrls(prev => new Map([...prev, ...newPreviews]));
+        
+        return allFiles;
+      }
+    });
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
