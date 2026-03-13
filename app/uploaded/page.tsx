@@ -52,6 +52,37 @@ const CATEGORY_FILTERS: { value: FileCategory | 'all'; label: string }[] = [
   { value: 'archive',  label: 'Archives' },
 ];
 
+/**
+ * Next.js Image with an automatic icon fallback when the image fails to load
+ * (e.g. broken URL, CORS error, or the asset was deleted from Cloudinary).
+ */
+function ImageWithFallback({
+  src,
+  alt,
+  fileName,
+  category,
+}: {
+  src: string;
+  alt: string;
+  fileName: string;
+  category: FileCategory;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return <FileThumbnail category={category} fileName={fileName} />;
+  }
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      fill
+      className="object-contain transition-transform duration-300 group-hover:scale-105"
+      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 /** Icon + colour for non-image file category thumbnails */
 function FileThumbnail({ category, fileName }: { category: FileCategory; fileName: string }) {
   const cfg: Record<FileCategory, { icon: React.ElementType; bg: string; text: string; label: string }> = {
@@ -61,7 +92,8 @@ function FileThumbnail({ category, fileName }: { category: FileCategory; fileNam
     document: { icon: FileText,    bg: 'bg-sky-500/10',    text: 'text-sky-500',    label: 'DOC' },
     archive:  { icon: FileArchive, bg: 'bg-amber-500/10',  text: 'text-amber-500',  label: 'ZIP' },
     other:    { icon: FileIcon,        bg: 'bg-muted',         text: 'text-muted-foreground', label: 'FILE' },
-    image:    { icon: FileIcon,        bg: 'bg-muted',         text: 'text-muted-foreground', label: 'FILE' },
+    // 'image' is a valid fallback: ImageWithFallback passes category='image' here when the image fails to load
+    image:    { icon: FileIcon,        bg: 'bg-muted',         text: 'text-muted-foreground', label: 'IMG' },
   };
   const { icon: Icon, bg, text, label } = cfg[category] ?? cfg.other;
   const ext = fileName.split('.').pop()?.toUpperCase() ?? label;
@@ -520,12 +552,11 @@ export default function UploadedPage() {
                     >
                       {category === 'image' ? (
                         <>
-                          <Image
+                          <ImageWithFallback
                             src={file.url}
                             alt={file.original_name}
-                            fill
-                            className="object-contain transition-transform duration-300 group-hover:scale-105"
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            fileName={file.original_name}
+                            category={category}
                           />
                           {!isSelectMode && (
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">

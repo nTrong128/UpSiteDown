@@ -56,6 +56,7 @@ export const DROPZONE_ACCEPT: Record<string, string[]> = {
   'application/x-7z-compressed': ['.7z'],
   'application/x-tar': ['.tar'],
   'application/gzip': ['.gz'],
+  'application/x-bzip2': ['.bz2'],
 };
 
 /**
