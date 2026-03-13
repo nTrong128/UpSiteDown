@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initDatabase, getImageById, deleteImage } from '@/lib/db';
-import { deleteFromCloudinary, extractPublicIdFromUrl } from '@/lib/cloudinary';
+import { deleteFromCloudinary, extractFromCloudinaryUrl } from '@/lib/cloudinary';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -33,9 +33,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     // Delete from Cloudinary first
     try {
-      const publicId = extractPublicIdFromUrl(image.url);
-      if (publicId) {
-        await deleteFromCloudinary(publicId);
+      const extracted = extractFromCloudinaryUrl(image.url);
+      if (extracted) {
+        await deleteFromCloudinary(extracted.publicId, extracted.resourceType);
       }
     } catch (cloudinaryError) {
       console.error('Cloudinary delete error:', cloudinaryError);

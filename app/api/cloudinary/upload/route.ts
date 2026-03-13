@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadToCloudinary, MAX_FILE_SIZE, ALLOWED_IMAGE_TYPES } from '@/lib/cloudinary';
+import { uploadToCloudinary, MAX_FILE_SIZE, ALLOWED_FILE_TYPES } from '@/lib/cloudinary';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,9 +14,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate file type
-    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { error: 'Invalid file type. Allowed: JPEG, PNG, GIF, WebP' },
+        { error: `Invalid file type: ${file.type}. Supported types: images, videos, audio, PDF, Office documents, and archives.` },
         { status: 400 }
       );
     }

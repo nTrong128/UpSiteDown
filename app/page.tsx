@@ -2,13 +2,17 @@
 
 import { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { CloudUpload, FileImage, CheckCircle2, AlertCircle, Loader2, Trash2, ImageDown } from 'lucide-react';
+import {
+  CloudUpload, FileImage, CheckCircle2, AlertCircle, Loader2, Trash2, ImageDown,
+  FileText, FileVideo, FileAudio, FileArchive, File as FileIcon,
+} from 'lucide-react';
 import { Navigation } from '@/components/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { resizeImageIfNeeded, MAX_FILE_SIZE } from '@/lib/image-resize';
+import { DROPZONE_ACCEPT, getFileCategoryFromMime, type FileCategory } from '@/lib/file-types';
 import ImageViewer from './components/ImageViewer';
 
 export default function Home() {
@@ -71,6 +75,19 @@ export default function Home() {
     return newPreviewUrls;
   };
 
+  /** Icon component for non-image file types */
+  const FileTypeIcon = ({ category, className }: { category: FileCategory; className?: string }) => {
+    const cls = cn('shrink-0', className);
+    switch (category) {
+      case 'video': return <FileVideo className={cls} />;
+      case 'audio': return <FileAudio className={cls} />;
+      case 'pdf':   return <FileText  className={cls} />;
+      case 'document': return <FileText className={cls} />;
+      case 'archive':  return <FileArchive className={cls} />;
+      default:         return <FileIcon className={cls} />;
+    }
+  };
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setError(null);
     setResizeNotice(null);
@@ -79,14 +96,53 @@ export default function Home() {
       // Handle duplicate filenames
       const filesWithUniqueNames = handleDuplicateFilenames(acceptedFiles, prevFiles);
       
-      // Check for oversized files
-      const oversizedFiles = filesWithUniqueNames.filter(file => file.size > MAX_FILE_SIZE);
-      if (oversizedFiles.length > 0) {
-        const fileNames = oversizedFiles.map(f => f.name).slice(0, 3);
-        const moreCount = oversizedFiles.length - 3;
+      // Non-image files over the size limit cannot be resized — reject them upfront
+      const oversizedNonImages = filesWithUniqueNames.filter(
+        file => !file.type.startsWith('image/') && file.size > MAX_FILE_SIZE
+      );
+      if (oversizedNonImages.length > 0) {
+        const names = oversizedNonImages.map(f => f.name).slice(0, 3).join(', ');
+        const more = oversizedNonImages.length > 3 ? ` and ${oversizedNonImages.length - 3} more` : '';
+        setError(`${names}${more} exceed${oversizedNonImages.length === 1 ? 's' : ''} the 4 MB limit and cannot be uploaded.`);
+        // Filter out the oversized non-images
+        const filteredFiles = filesWithUniqueNames.filter(
+          file => file.type.startsWith('image/') || file.size <= MAX_FILE_SIZE
+        );
+        if (filteredFiles.length === 0) return prevFiles;
+        // Continue with remaining files
+        const oversizedImages = filteredFiles.filter(
+          file => file.type.startsWith('image/') && file.size > MAX_FILE_SIZE
+        );
+        if (oversizedImages.length > 0) {
+          const fileNames = oversizedImages.map(f => f.name).slice(0, 3);
+          const moreCount = oversizedImages.length - 3;
+          const message = moreCount > 0
+            ? `${fileNames.join(', ')} and ${moreCount} more will be resized to fit 4 MB limit`
+            : `${fileNames.join(', ')} will be resized to fit 4 MB limit`;
+          setResizeNotice(message);
+        }
+        const allFiles = [...prevFiles, ...filteredFiles];
+        if (allFiles.length > 100) {
+          setError(`Maximum 100 files allowed at a time`);
+          const newPreviews = createPreviewUrls(filteredFiles);
+          setPreviewUrls(prev => new Map([...prev, ...newPreviews]));
+          return allFiles.slice(0, 100);
+        }
+        const newPreviews = createPreviewUrls(filteredFiles);
+        setPreviewUrls(prev => new Map([...prev, ...newPreviews]));
+        return allFiles;
+      }
+
+      // Check for oversized image files (they will be auto-resized)
+      const oversizedImages = filesWithUniqueNames.filter(
+        file => file.type.startsWith('image/') && file.size > MAX_FILE_SIZE
+      );
+      if (oversizedImages.length > 0) {
+        const fileNames = oversizedImages.map(f => f.name).slice(0, 3);
+        const moreCount = oversizedImages.length - 3;
         const message = moreCount > 0 
-          ? `${fileNames.join(', ')} and ${moreCount} more will be resized to fit 4MB limit`
-          : `${fileNames.join(', ')} will be resized to fit 4MB limit`;
+          ? `${fileNames.join(', ')} and ${moreCount} more will be resized to fit 4 MB limit`
+          : `${fileNames.join(', ')} will be resized to fit 4 MB limit`;
         setResizeNotice(message);
       }
       
@@ -94,7 +150,7 @@ export default function Home() {
       const allFiles = [...prevFiles, ...filesWithUniqueNames];
       
       if (allFiles.length > 100) {
-        setError('Maximum 100 images allowed at a time');
+        setError('Maximum 100 files allowed at a time');
         const limitedFiles = allFiles.slice(0, 100);
         
         // Create preview URLs only for new files
@@ -114,9 +170,7 @@ export default function Home() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp']
-    },
+    accept: DROPZONE_ACCEPT,
     maxFiles: 100,
   });
 
@@ -277,10 +331,10 @@ export default function Home() {
       <main className="max-w-4xl mx-auto px-4 py-12">
         <div className="text-center mb-8 animate-slideDown">
           <h2 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 dark:to-purple-400 bg-clip-text text-transparent mb-3">
-            Upload Your Images
+            Upload Your Files
           </h2>
           <p className="text-muted-foreground text-lg">
-            Upload up to 100 images at once. Drag and drop, click to select, or paste (Ctrl+V).
+            Upload up to 100 files at once. Drag and drop, click to select, or paste (Ctrl+V).
           </p>
         </div>
 
@@ -307,12 +361,12 @@ export default function Home() {
                 </div>
                 {isDragActive ? (
                   <p className="text-xl text-primary font-medium animate-pulse">
-                    Drop the images here...
+                    Drop the files here...
                   </p>
                 ) : (
                   <div>
                     <p className="text-xl font-medium text-foreground">
-                      Drag and drop images here
+                      Drag and drop files here
                     </p>
                     <p className="text-muted-foreground mt-2">
                       or click to select files, or paste from clipboard (Ctrl+V)
@@ -320,7 +374,7 @@ export default function Home() {
                   </div>
                 )}
                 <p className="text-sm text-muted-foreground">
-                  PNG, JPG, GIF, WebP (max 100 files, 4MB per file)
+                  Images, PDFs, Videos, Audio, DOCX, PPTX, XLSX, ZIP and more · max 100 files · 4 MB per file (images auto-resized)
                 </p>
               </div>
             </div>
@@ -341,47 +395,52 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <div className="max-h-96 overflow-y-auto space-y-2 mb-4">
-                {selectedFiles.map((file, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between text-sm py-2 px-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      {/* Image Preview */}
-                      {previewUrls.has(file.name) ? (
-                        <div 
-                          className="shrink-0 w-12 h-12 rounded overflow-hidden bg-background border cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-                          onClick={() => handlePreviewClick(file.name)}
-                          title="Click to view fullscreen"
+                {selectedFiles.map((file, index) => {
+                  const category = getFileCategoryFromMime(file.type);
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between text-sm py-2 px-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {/* Image Preview or file-type icon */}
+                        {previewUrls.has(file.name) ? (
+                          <div 
+                            className="shrink-0 w-12 h-12 rounded overflow-hidden bg-background border cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                            onClick={() => handlePreviewClick(file.name)}
+                            title="Click to view fullscreen"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={previewUrls.get(file.name)}
+                              alt={file.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="shrink-0 w-12 h-12 rounded overflow-hidden bg-muted border flex items-center justify-center">
+                            <FileTypeIcon category={category} className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                        )}
+                        <span className="truncate text-foreground">{file.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground text-xs whitespace-nowrap">
+                          {(file.size / 1024).toFixed(1)} KB
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all hover:bg-destructive/10 hover:text-destructive hover:scale-110"
+                          onClick={() => removeFile(index)}
+                          title="Remove file"
                         >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={previewUrls.get(file.name)}
-                            alt={file.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <FileImage className="h-4 w-4 text-muted-foreground shrink-0" />
-                      )}
-                      <span className="truncate text-foreground">{file.name}</span>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground text-xs whitespace-nowrap">
-                        {(file.size / 1024).toFixed(1)} KB
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all hover:bg-destructive/10 hover:text-destructive hover:scale-110"
-                        onClick={() => removeFile(index)}
-                        title="Delete image"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Progress Bar */}
@@ -409,7 +468,7 @@ export default function Home() {
                 ) : (
                   <>
                     <CloudUpload className="h-4 w-4" />
-                    Upload {selectedFiles.length} Image{selectedFiles.length > 1 ? 's' : ''}
+                    Upload {selectedFiles.length} File{selectedFiles.length > 1 ? 's' : ''}
                   </>
                 )}
               </Button>
@@ -424,7 +483,7 @@ export default function Home() {
               <div className="flex items-center gap-3 text-green-600 dark:text-green-400">
                 <CheckCircle2 className="h-5 w-5" />
                 <span className="font-medium">
-                  Successfully uploaded {uploadedCount} image{uploadedCount > 1 ? 's' : ''}!
+                  Successfully uploaded {uploadedCount} file{uploadedCount > 1 ? 's' : ''}!
                 </span>
               </div>
             </CardContent>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { X, Trash2, ZoomIn, ZoomOut, RotateCcw, Download, Loader2 } from 'lucide-react';
-import { downloadImage } from '../../lib/download';
+import { downloadFile } from '../../lib/download';
 import { Button } from '@/components/ui/button';
 
 interface ImageViewerProps {
@@ -127,7 +127,7 @@ export default function ImageViewer({
   }, []);
 
   const handleDownload = useCallback(async () => {
-    await downloadImage(imageUrl, imageName);
+    await downloadFile(imageUrl, imageName);
   }, [imageUrl, imageName]);
 
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {

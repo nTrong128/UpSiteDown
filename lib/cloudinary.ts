@@ -1,4 +1,7 @@
 import { v2 as cloudinary } from 'cloudinary';
+import { ALLOWED_FILE_TYPES } from '@/lib/file-types';
+
+export { ALLOWED_FILE_TYPES };
 
 // Configure cloudinary from CLOUDINARY_URL environment variable
 // Format: cloudinary://<API_KEY>:<API_SECRET>@<CLOUD_NAME>
@@ -15,7 +18,7 @@ if (process.env.CLOUDINARY_URL) {
  */
 export const MAX_FILE_SIZE = 4 * 1024 * 1024;
 
-/** Allowed image MIME types */
+/** Allowed image MIME types (kept for backwards compatibility) */
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
 /**
@@ -33,7 +36,7 @@ export async function uploadToCloudinary(
       {
         folder: options?.folder || 'upsitedown',
         public_id: options?.publicId,
-        resource_type: 'image',
+        resource_type: 'auto',
       },
       (error, result) => {
         if (error) {
@@ -53,13 +56,14 @@ export async function uploadToCloudinary(
 }
 
 /**
- * Delete an image from Cloudinary
- * @param publicId - The public ID of the image to delete
+ * Delete a file from Cloudinary
+ * @param publicId - The public ID of the file to delete
+ * @param resourceType - The Cloudinary resource type ('image', 'video', 'raw'). Defaults to 'image'.
  * @returns Whether the deletion was successful
  */
-export async function deleteFromCloudinary(publicId: string): Promise<boolean> {
+export async function deleteFromCloudinary(publicId: string, resourceType: 'image' | 'video' | 'raw' = 'image'): Promise<boolean> {
   try {
-    const result = await cloudinary.uploader.destroy(publicId);
+    const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
     return result.result === 'ok';
   } catch (error) {
     console.error('Cloudinary delete error:', error);
@@ -68,35 +72,50 @@ export async function deleteFromCloudinary(publicId: string): Promise<boolean> {
 }
 
 /**
- * Extract the public ID from a Cloudinary URL
- * @param url - The Cloudinary URL
- * @returns The public ID or null if not a valid Cloudinary URL
+ * Extract the public ID and resource type from a Cloudinary URL.
+ * Cloudinary URL format:
+ *   https://res.cloudinary.com/<cloud>/image|video|raw/upload/[version]/<public_id>.<ext>
+ * @returns Object with publicId and resourceType, or null if not a valid Cloudinary URL.
  */
-export function extractPublicIdFromUrl(url: string): string | null {
+export function extractFromCloudinaryUrl(url: string): { publicId: string; resourceType: 'image' | 'video' | 'raw' } | null {
   try {
     const urlObj = new URL(url);
-    // Cloudinary URLs typically look like:
-    // https://res.cloudinary.com/<cloud_name>/image/upload/<version>/<folder>/<public_id>.<ext>
     const pathParts = urlObj.pathname.split('/');
     const uploadIndex = pathParts.indexOf('upload');
-    if (uploadIndex === -1) return null;
-    
-    // Everything after 'upload' and the version (if present) is the public ID
+    if (uploadIndex < 2) return null;
+
+    // The segment immediately before 'upload' is the resource type
+    const rawResourceType = pathParts[uploadIndex - 1];
+    const resourceType: 'image' | 'video' | 'raw' =
+      rawResourceType === 'video' ? 'video' :
+      rawResourceType === 'raw' ? 'raw' :
+      'image';
+
     let publicIdParts = pathParts.slice(uploadIndex + 1);
-    
+
     // Remove version if present (starts with 'v' followed by numbers)
     if (publicIdParts.length > 0 && /^v\d+$/.test(publicIdParts[0])) {
       publicIdParts = publicIdParts.slice(1);
     }
-    
-    // Join remaining parts and remove file extension
+
+    // Join remaining parts and strip file extension
     const publicIdWithExt = publicIdParts.join('/');
     const publicId = publicIdWithExt.replace(/\.[^/.]+$/, '');
-    
-    return publicId || null;
+
+    return publicId ? { publicId, resourceType } : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Extract the public ID from a Cloudinary URL
+ * @param url - The Cloudinary URL
+ * @returns The public ID or null if not a valid Cloudinary URL
+ * @deprecated Use extractFromCloudinaryUrl which also returns the resource type.
+ */
+export function extractPublicIdFromUrl(url: string): string | null {
+  return extractFromCloudinaryUrl(url)?.publicId ?? null;
 }
 
 export { cloudinary };
