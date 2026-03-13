@@ -1,18 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * Server-side download proxy for Cloudinary files.
+ * Redirect-based download helper for Cloudinary files.
  *
- * Fetching Cloudinary `raw` resources (documents, archives, etc.) directly
- * from the browser is blocked by CORS, producing a 0-byte downloaded file.
- * This route fetches the file on the server (no CORS restriction) and streams
- * it back to the client with a `Content-Disposition: attachment` header so the
- * browser always saves it as a file instead of opening it.
+ * The primary download path uses the `fl_attachment` flag directly in the
+ * Cloudinary URL (built client-side in lib/download.ts), so no server proxy
+ * is required and no authentication / CORS issues arise.
+ *
+ * This route is kept as a convenience endpoint: it validates that the target
+ * URL is a Cloudinary URL, injects the `fl_attachment` flag, and issues a
+ * 302 redirect so the browser fetches the file directly from Cloudinary with
+ * `Content-Disposition: attachment`.
  *
  * Query params:
- *   url      – the Cloudinary file URL to proxy
+ *   url      – the Cloudinary file URL
  *   filename – the filename to suggest for the download
  */
+
+/**
+ * Sanitise a filename so it is safe to embed in a Cloudinary transformation
+ * parameter (`fl_attachment:FILENAME` lives inside a URL path segment).
+ */
+function sanitizeFilenameForCloudinary(filename: string): string {
+  return filename
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/, '');
+}
+
+function buildAttachmentUrl(cloudinaryUrl: string, filename: string): string {
+  if (cloudinaryUrl.includes('fl_attachment')) {
+    return cloudinaryUrl;
+  }
+  const safeFilename = sanitizeFilenameForCloudinary(filename);
+  const flag = safeFilename ? `fl_attachment:${safeFilename}` : 'fl_attachment';
+  return cloudinaryUrl.replace(/(\/(?:image|video|raw)\/upload\/)/, `$1${flag}/`);
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const url = searchParams.get('url');
@@ -41,35 +65,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Fetch from Cloudinary on the server side — no CORS limitations here
-  let upstream: Response;
-  try {
-    upstream = await fetch(url);
-  } catch {
-    return NextResponse.json({ error: 'Failed to fetch file' }, { status: 502 });
-  }
-
-  if (!upstream.ok) {
-    return NextResponse.json(
-      { error: `Upstream returned ${upstream.status}` },
-      { status: upstream.status >= 400 ? upstream.status : 502 }
-    );
-  }
-
-  const contentType =
-    upstream.headers.get('content-type') ?? 'application/octet-stream';
-  const contentLength = upstream.headers.get('content-length');
-
-  const headers: Record<string, string> = {
-    'Content-Type': contentType,
-    // RFC 5987 encoding for non-ASCII filenames
-    'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
-    'Cache-Control': 'no-store',
-  };
-
-  if (contentLength) {
-    headers['Content-Length'] = contentLength;
-  }
-
-  return new NextResponse(upstream.body, { headers });
+  // Redirect the browser to the Cloudinary URL with fl_attachment so Cloudinary
+  // sets Content-Disposition: attachment — no server-side content proxying.
+  const attachmentUrl = buildAttachmentUrl(url, filename);
+  return NextResponse.redirect(attachmentUrl, { status: 302 });
 }
