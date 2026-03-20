@@ -2,12 +2,25 @@
 
 import { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { CloudUpload, FileImage, CheckCircle2, AlertCircle, Loader2, Trash2 } from 'lucide-react';
+import {
+  CloudUpload,
+  FileImage,
+  FileText,
+  FileVideo,
+  FileAudio,
+  FileArchive,
+  File as FileIcon,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Trash2,
+} from 'lucide-react';
 import { Navigation } from '@/components/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { getFileCategory } from '@/lib/file-utils';
 import ImageViewer from './components/ImageViewer';
 
 export default function Home() {
@@ -18,6 +31,27 @@ export default function Home() {
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [previewUrls, setPreviewUrls] = useState<Map<string, string>>(new Map());
   const [selectedPreview, setSelectedPreview] = useState<{ name: string; url: string } | null>(null);
+
+  /** Returns the appropriate icon for a file based on its MIME type. */
+  const getFileIcon = (file: File) => {
+    const category = getFileCategory(file.type || file.name);
+    switch (category) {
+      case 'image':
+        return <FileImage className="h-4 w-4 text-muted-foreground shrink-0" />;
+      case 'video':
+        return <FileVideo className="h-4 w-4 text-muted-foreground shrink-0" />;
+      case 'audio':
+        return <FileAudio className="h-4 w-4 text-muted-foreground shrink-0" />;
+      case 'pdf':
+      case 'document':
+      case 'text':
+        return <FileText className="h-4 w-4 text-muted-foreground shrink-0" />;
+      case 'archive':
+        return <FileArchive className="h-4 w-4 text-muted-foreground shrink-0" />;
+      default:
+        return <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />;
+    }
+  };
 
   // Cleanup preview URLs when component unmounts
   useEffect(() => {
@@ -80,7 +114,7 @@ export default function Home() {
       const allFiles = [...prevFiles, ...filesWithUniqueNames];
       
       if (allFiles.length > 100) {
-        setError('Maximum 100 images allowed at a time');
+        setError('Maximum 100 files allowed at a time');
         const limitedFiles = allFiles.slice(0, 100);
         
         // Create preview URLs only for new files
@@ -100,9 +134,6 @@ export default function Home() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp']
-    },
     maxFiles: 100,
   });
 
@@ -167,7 +198,7 @@ export default function Home() {
         formData.append('folder', folder);
 
         const cloudinaryRes = await fetch(
-          `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+          `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
           { method: 'POST', body: formData }
         );
 
@@ -264,10 +295,10 @@ export default function Home() {
       <main className="max-w-4xl mx-auto px-4 py-12">
         <div className="text-center mb-8 animate-slideDown">
           <h2 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 dark:to-purple-400 bg-clip-text text-transparent mb-3">
-            Upload Your Images
+            Upload Your Files
           </h2>
           <p className="text-muted-foreground text-lg">
-            Upload up to 100 images at once. Drag and drop, click to select, or paste (Ctrl+V).
+            Upload up to 100 files at once. Drag and drop, click to select, or paste (Ctrl+V).
           </p>
         </div>
 
@@ -294,12 +325,12 @@ export default function Home() {
                 </div>
                 {isDragActive ? (
                   <p className="text-xl text-primary font-medium animate-pulse">
-                    Drop the images here...
+                    Drop the files here...
                   </p>
                 ) : (
                   <div>
                     <p className="text-xl font-medium text-foreground">
-                      Drag and drop images here
+                      Drag and drop files here
                     </p>
                     <p className="text-muted-foreground mt-2">
                       or click to select files, or paste from clipboard (Ctrl+V)
@@ -307,7 +338,7 @@ export default function Home() {
                   </div>
                 )}
                 <p className="text-sm text-muted-foreground">
-                  PNG, JPG, GIF, WebP (max 100 files)
+                  Any file type supported (max 100 files)
                 </p>
               </div>
             </div>
@@ -319,7 +350,7 @@ export default function Home() {
           <Card className="mt-6 animate-scaleIn">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <FileImage className="h-5 w-5 text-primary" />
+                <FileIcon className="h-5 w-5 text-primary" />
                 Selected Files ({selectedFiles.length})
               </CardTitle>
               <CardDescription>
@@ -349,7 +380,7 @@ export default function Home() {
                           />
                         </div>
                       ) : (
-                        <FileImage className="h-4 w-4 text-muted-foreground shrink-0" />
+                        getFileIcon(file)
                       )}
                       <span className="truncate text-foreground">{file.name}</span>
                     </div>
@@ -396,7 +427,7 @@ export default function Home() {
                 ) : (
                   <>
                     <CloudUpload className="h-4 w-4" />
-                    Upload {selectedFiles.length} Image{selectedFiles.length > 1 ? 's' : ''}
+                    Upload {selectedFiles.length} File{selectedFiles.length > 1 ? 's' : ''}
                   </>
                 )}
               </Button>
@@ -411,7 +442,7 @@ export default function Home() {
               <div className="flex items-center gap-3 text-green-600 dark:text-green-400">
                 <CheckCircle2 className="h-5 w-5" />
                 <span className="font-medium">
-                  Successfully uploaded {uploadedCount} image{uploadedCount > 1 ? 's' : ''}!
+                  Successfully uploaded {uploadedCount} file{uploadedCount > 1 ? 's' : ''}!
                 </span>
               </div>
             </CardContent>
