@@ -35,7 +35,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     try {
       const publicId = extractPublicIdFromUrl(image.url);
       if (publicId) {
-        await deleteFromCloudinary(publicId);
+        await deleteFromCloudinary(publicId, image.url);
       }
     } catch (cloudinaryError) {
       console.error('Cloudinary delete error:', cloudinaryError);

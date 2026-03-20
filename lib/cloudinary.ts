@@ -1,4 +1,5 @@
 import { v2 as cloudinary } from 'cloudinary';
+import { getResourceTypeFromUrl } from './file-utils';
 
 // Configure cloudinary from CLOUDINARY_URL environment variable
 // Format: cloudinary://<API_KEY>:<API_SECRET>@<CLOUD_NAME>
@@ -12,7 +13,7 @@ if (process.env.CLOUDINARY_URL) {
 /** Maximum file size in bytes (10MB) used for the server-side upload route */
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-/** Allowed image MIME types */
+/** Allowed image MIME types (kept for backwards-compatibility) */
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
 /**
@@ -30,7 +31,7 @@ export async function uploadToCloudinary(
       {
         folder: options?.folder || 'upsitedown',
         public_id: options?.publicId,
-        resource_type: 'image',
+        resource_type: 'auto',
       },
       (error, result) => {
         if (error) {
@@ -50,13 +51,15 @@ export async function uploadToCloudinary(
 }
 
 /**
- * Delete an image from Cloudinary
- * @param publicId - The public ID of the image to delete
+ * Delete a file from Cloudinary.
+ * @param publicId - The public ID of the file to delete
+ * @param url - The Cloudinary URL (used to infer the resource type)
  * @returns Whether the deletion was successful
  */
-export async function deleteFromCloudinary(publicId: string): Promise<boolean> {
+export async function deleteFromCloudinary(publicId: string, url?: string): Promise<boolean> {
   try {
-    const result = await cloudinary.uploader.destroy(publicId);
+    const resourceType = url ? getResourceTypeFromUrl(url) : 'image';
+    const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
     return result.result === 'ok';
   } catch (error) {
     console.error('Cloudinary delete error:', error);

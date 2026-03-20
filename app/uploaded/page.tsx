@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { 
   Download, 
   Trash2, 
-  ImageIcon, 
   Loader2, 
   AlertCircle, 
   Upload,
@@ -15,7 +14,13 @@ import {
   HardDrive,
   CheckSquare,
   Square,
-  X
+  X,
+  File as FileIcon,
+  FileText,
+  FileVideo,
+  FileAudio,
+  FileArchive,
+  FileImage,
 } from 'lucide-react';
 import ImageViewer from '../components/ImageViewer';
 import { downloadImage } from '../../lib/download';
@@ -24,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { isImageFile, getFileCategory } from '@/lib/file-utils';
 
 interface UploadedImage {
   id: number;
@@ -45,6 +51,28 @@ export default function UploadedPage() {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
+
+  /** Returns an icon element for a non-image file based on its name/URL. */
+  const getNonImageIcon = (name: string) => {
+    const category = getFileCategory(name);
+    const cls = 'h-12 w-12 text-muted-foreground';
+    switch (category) {
+      case 'video':
+        return <FileVideo className={cls} />;
+      case 'audio':
+        return <FileAudio className={cls} />;
+      case 'pdf':
+      case 'document':
+      case 'text':
+        return <FileText className={cls} />;
+      case 'archive':
+        return <FileArchive className={cls} />;
+      case 'image':
+        return <FileImage className={cls} />;
+      default:
+        return <FileIcon className={cls} />;
+    }
+  };
 
   useEffect(() => {
     fetchImages();
@@ -99,7 +127,9 @@ export default function UploadedPage() {
   }, []);
 
   const handleImageClick = useCallback((image: UploadedImage) => {
-    setSelectedImage(image);
+    if (isImageFile(image.original_name)) {
+      setSelectedImage(image);
+    }
   }, []);
 
   const handleCloseViewer = useCallback(() => {
@@ -176,10 +206,10 @@ export default function UploadedPage() {
       setIsSelectMode(false);
 
       if (failedDeletes.length > 0) {
-        setBulkDeleteError(`Failed to delete ${failedDeletes.length} image(s). Please try again.`);
+        setBulkDeleteError(`Failed to delete ${failedDeletes.length} file(s). Please try again.`);
       }
     } catch (err) {
-      setBulkDeleteError('Failed to delete images: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      setBulkDeleteError('Failed to delete files: ' + (err instanceof Error ? err.message : 'Unknown error'));
       setShowBulkDeleteDialog(false);
     } finally {
       setIsBulkDeleting(false);
@@ -194,10 +224,10 @@ export default function UploadedPage() {
       <main className="max-w-7xl mx-auto px-4 py-12">
         <div className="text-center mb-8 animate-slideDown">
           <h2 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 dark:to-purple-400 bg-clip-text text-transparent mb-3">
-            Your Gallery
+            Your Files
           </h2>
           <p className="text-muted-foreground text-lg">
-            All your uploaded images are stored here
+            All your uploaded files are stored here
           </p>
         </div>
 
@@ -206,7 +236,7 @@ export default function UploadedPage() {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
               <Loader2 className="h-8 w-8 text-primary animate-spin" />
             </div>
-            <p className="text-muted-foreground">Loading your images...</p>
+            <p className="text-muted-foreground">Loading your files...</p>
           </div>
         )}
 
@@ -246,18 +276,18 @@ export default function UploadedPage() {
           <Card className="max-w-md mx-auto animate-scaleIn">
             <CardContent className="pt-12 pb-8 text-center">
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-muted mb-6">
-                <ImageIcon className="h-10 w-10 text-muted-foreground" />
+                <FileIcon className="h-10 w-10 text-muted-foreground" />
               </div>
               <h3 className="text-xl font-semibold mb-2">
-                No images uploaded yet
+                No files uploaded yet
               </h3>
               <p className="text-muted-foreground mb-6">
-                Upload some images to see them here
+                Upload some files to see them here
               </p>
               <Button asChild>
                 <Link href="/" className="inline-flex items-center gap-2">
                   <Upload className="h-4 w-4" />
-                  Upload Images
+                  Upload Files
                 </Link>
               </Button>
             </CardContent>
@@ -268,7 +298,7 @@ export default function UploadedPage() {
           <div className="animate-slideUp">
             <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
               <p className="text-muted-foreground">
-                <span className="font-medium text-foreground">{images.length}</span> image{images.length > 1 ? 's' : ''} in gallery
+                <span className="font-medium text-foreground">{images.length}</span> file{images.length > 1 ? 's' : ''} uploaded
               </p>
               <div className="flex items-center gap-2">
                 {isSelectMode ? (
@@ -357,7 +387,7 @@ export default function UploadedPage() {
                         handleDelete(image.id, image.original_name);
                       }}
                       disabled={deletingId === image.id}
-                      title="Delete image"
+                      title="Delete file"
                     >
                       {deletingId === image.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -371,19 +401,30 @@ export default function UploadedPage() {
                     className="relative h-48 bg-muted dark:bg-muted/50"
                     onClick={() => isSelectMode ? toggleSelection(image.id) : handleImageClick(image)}
                   >
-                    <Image
-                      src={image.url}
-                      alt={image.original_name}
-                      fill
-                      className="object-contain transition-transform duration-300 group-hover:scale-105"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    />
-                    {/* Hover overlay */}
-                    {!isSelectMode && (
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/20 backdrop-blur-sm rounded-full p-3">
-                          <ZoomIn className="w-6 h-6 text-white" />
-                        </div>
+                    {isImageFile(image.original_name) ? (
+                      <>
+                        <Image
+                          src={image.url}
+                          alt={image.original_name}
+                          fill
+                          className="object-contain transition-transform duration-300 group-hover:scale-105"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        />
+                        {/* Hover overlay for images */}
+                        {!isSelectMode && (
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/20 backdrop-blur-sm rounded-full p-3">
+                              <ZoomIn className="w-6 h-6 text-white" />
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
+                        {getNonImageIcon(image.original_name)}
+                        <span className="text-xs text-muted-foreground text-center truncate w-full px-2">
+                          {image.original_name.split('.').pop()?.toUpperCase() ?? 'FILE'}
+                        </span>
                       </div>
                     )}
                     {/* Selection overlay */}
@@ -445,8 +486,8 @@ export default function UploadedPage() {
         {/* Bulk delete confirmation dialog */}
         <ConfirmDialog
           isOpen={showBulkDeleteDialog}
-          title="Delete Selected Images"
-          message={`Are you sure you want to delete ${selectedIds.size} image${selectedIds.size > 1 ? 's' : ''}? This action cannot be undone.`}
+          title="Delete Selected Files"
+          message={`Are you sure you want to delete ${selectedIds.size} file${selectedIds.size > 1 ? 's' : ''}? This action cannot be undone.`}
           confirmText="Delete"
           cancelText="Cancel"
           loadingText="Deleting..."
