@@ -1,9 +1,7 @@
 /**
- * Maximum file size in bytes (4MB)
- * This limit ensures files stay under serverless function body size limits
- * (e.g., Vercel has a 4.5MB limit for serverless functions)
+ * Maximum file size in bytes (10MB) used as default threshold for resizing.
  */
-export const MAX_FILE_SIZE = 4 * 1024 * 1024;
+export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 /**
  * Resizes an image to be under the max file size
