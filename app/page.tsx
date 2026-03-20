@@ -2,13 +2,12 @@
 
 import { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { CloudUpload, FileImage, CheckCircle2, AlertCircle, Loader2, Trash2, ImageDown } from 'lucide-react';
+import { CloudUpload, FileImage, CheckCircle2, AlertCircle, Loader2, Trash2 } from 'lucide-react';
 import { Navigation } from '@/components/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { resizeImageIfNeeded, MAX_FILE_SIZE } from '@/lib/image-resize';
 import ImageViewer from './components/ImageViewer';
 
 export default function Home() {
@@ -17,7 +16,6 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [resizeNotice, setResizeNotice] = useState<string | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Map<string, string>>(new Map());
   const [selectedPreview, setSelectedPreview] = useState<{ name: string; url: string } | null>(null);
 
@@ -73,22 +71,10 @@ export default function Home() {
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setError(null);
-    setResizeNotice(null);
     
     setSelectedFiles(prevFiles => {
       // Handle duplicate filenames
       const filesWithUniqueNames = handleDuplicateFilenames(acceptedFiles, prevFiles);
-      
-      // Check for oversized files
-      const oversizedFiles = filesWithUniqueNames.filter(file => file.size > MAX_FILE_SIZE);
-      if (oversizedFiles.length > 0) {
-        const fileNames = oversizedFiles.map(f => f.name).slice(0, 3);
-        const moreCount = oversizedFiles.length - 3;
-        const message = moreCount > 0 
-          ? `${fileNames.join(', ')} and ${moreCount} more will be resized to fit 4MB limit`
-          : `${fileNames.join(', ')} will be resized to fit 4MB limit`;
-        setResizeNotice(message);
-      }
       
       // Combine with existing files
       const allFiles = [...prevFiles, ...filesWithUniqueNames];
@@ -165,30 +151,38 @@ export default function Home() {
       const uploadedFiles: { originalName: string; size: number; url: string }[] = [];
       
       const uploadFile = async (file: File) => {
-        // Resize image if needed
-        const { file: processedFile } = await resizeImageIfNeeded(file);
-        
-        // Upload to Cloudinary via our API
-        const formData = new FormData();
-        formData.append('file', processedFile);
-        
-        const res = await fetch('/api/cloudinary/upload', {
-          method: 'POST',
-          body: formData,
-        });
-        
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error || 'Upload failed');
+        // Get signed upload params from our server (tiny request, no file data)
+        const signRes = await fetch('/api/cloudinary/sign-upload');
+        if (!signRes.ok) {
+          throw new Error(`Failed to get upload signature: ${signRes.status} ${signRes.statusText}`);
         }
-        
-        const data = await res.json();
+        const { timestamp, signature, apiKey, cloudName, folder } = await signRes.json();
+
+        // Upload the file directly to Cloudinary — bypasses serverless body-size limit
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('api_key', apiKey);
+        formData.append('timestamp', String(timestamp));
+        formData.append('signature', signature);
+        formData.append('folder', folder);
+
+        const cloudinaryRes = await fetch(
+          `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+          { method: 'POST', body: formData }
+        );
+
+        if (!cloudinaryRes.ok) {
+          const errorData = await cloudinaryRes.json();
+          throw new Error(errorData.error?.message || 'Upload failed');
+        }
+
+        const data = await cloudinaryRes.json();
         completedUploads++;
         setUploadProgress(Math.round((completedUploads / totalFiles) * 100));
         return {
           originalName: file.name,
-          size: processedFile.size,
-          url: data.url,
+          size: data.bytes ?? file.size,
+          url: data.secure_url,
         };
       };
 
@@ -214,7 +208,6 @@ export default function Home() {
         setUploadedCount(data.count);
         setSelectedFiles([]);
         setUploadProgress(0);
-        setResizeNotice(null);
         
         // Clean up preview URLs
         previewUrls.forEach((url) => URL.revokeObjectURL(url));
@@ -225,13 +218,7 @@ export default function Home() {
         setError(data.error || 'Upload failed');
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      // Format file size errors to be human readable (e.g., "Max size is 4194304" -> "Max size is 4MB")
-      const formattedMessage = errorMessage.replace(
-        /Max size is (\d+)$/,
-        (_, bytes) => `Max size is ${Math.round(parseInt(bytes, 10) / (1024 * 1024))}MB`
-      );
-      setError('Upload failed: ' + formattedMessage);
+      setError('Upload failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -320,7 +307,7 @@ export default function Home() {
                   </div>
                 )}
                 <p className="text-sm text-muted-foreground">
-                  PNG, JPG, GIF, WebP (max 100 files, 4MB per file)
+                  PNG, JPG, GIF, WebP (max 100 files)
                 </p>
               </div>
             </div>
@@ -426,18 +413,6 @@ export default function Home() {
                 <span className="font-medium">
                   Successfully uploaded {uploadedCount} image{uploadedCount > 1 ? 's' : ''}!
                 </span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Resize Notice */}
-        {resizeNotice && (
-          <Card className="mt-6 border-blue-500/50 bg-blue-500/10 animate-scaleIn">
-            <CardContent className="py-4">
-              <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400">
-                <ImageDown className="h-5 w-5" />
-                <span className="font-medium">{resizeNotice}</span>
               </div>
             </CardContent>
           </Card>

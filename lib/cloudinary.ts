@@ -9,11 +9,8 @@ if (process.env.CLOUDINARY_URL) {
   });
 }
 
-/** Maximum file size in bytes (4MB)
- * This limit ensures files stay under serverless function body size limits
- * (e.g., Vercel has a 4.5MB limit for serverless functions)
- */
-export const MAX_FILE_SIZE = 4 * 1024 * 1024;
+/** Maximum file size in bytes (10MB) used for the server-side upload route */
+export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 /** Allowed image MIME types */
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -97,6 +94,36 @@ export function extractPublicIdFromUrl(url: string): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Generate signed upload parameters for direct client-side uploads to Cloudinary.
+ * The browser can use these params to upload a file directly to Cloudinary,
+ * completely bypassing serverless function body-size limits.
+ * @param folder - Cloudinary folder to upload into
+ * @returns Signed upload parameters (timestamp, signature, apiKey, cloudName, folder)
+ */
+export function generateUploadSignature(folder: string = 'upsitedown'): {
+  timestamp: number;
+  signature: string;
+  apiKey: string;
+  cloudName: string;
+  folder: string;
+} {
+  const timestamp = Math.round(Date.now() / 1000);
+  const params: Record<string, string | number> = { timestamp, folder };
+  const config = cloudinary.config();
+  const signature = cloudinary.utils.api_sign_request(
+    params,
+    config.api_secret as string
+  );
+  return {
+    timestamp,
+    signature,
+    apiKey: config.api_key as string,
+    cloudName: config.cloud_name as string,
+    folder,
+  };
 }
 
 export { cloudinary };
