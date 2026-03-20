@@ -59,6 +59,9 @@ export async function uploadToCloudinary(
 export async function deleteFromCloudinary(publicId: string, url?: string): Promise<boolean> {
   try {
     const resourceType = url ? getResourceTypeFromUrl(url) : 'image';
+    if (!url) {
+      console.warn('deleteFromCloudinary: no URL provided, defaulting resource_type to "image". Non-image files may not be deleted correctly.');
+    }
     const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
     return result.result === 'ok';
   } catch (error) {

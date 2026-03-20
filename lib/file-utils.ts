@@ -1,6 +1,9 @@
 /**
  * Returns the Cloudinary resource type ('image' | 'video' | 'raw') inferred
- * from a Cloudinary URL path segment, defaulting to 'image' for unknown URLs.
+ * from a Cloudinary URL path segment.
+ * Defaults to 'image' for URLs that don't contain a recognised resource-type
+ * segment (e.g. '/video/upload/' or '/raw/upload/'), which is the correct
+ * fallback for the vast majority of files already stored in the database.
  */
 export function getResourceTypeFromUrl(url: string): 'image' | 'video' | 'raw' {
   if (url.includes('/video/upload/')) return 'video';

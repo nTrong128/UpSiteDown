@@ -423,7 +423,7 @@ export default function UploadedPage() {
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
                         {getNonImageIcon(image.original_name)}
                         <span className="text-xs text-muted-foreground text-center truncate w-full px-2">
-                          {image.original_name.split('.').pop()?.toUpperCase() ?? 'FILE'}
+                          {(/\.([^.]+)$/.exec(image.original_name)?.[1] ?? 'FILE').toUpperCase()}
                         </span>
                       </div>
                     )}
