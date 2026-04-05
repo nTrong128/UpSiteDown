@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Upload, ImageIcon } from "lucide-react"
+import { Upload, ImageIcon, ClipboardList } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -53,6 +53,20 @@ export function Navigation() {
               <Link href="/uploaded" className="flex items-center gap-2">
                 <ImageIcon className="h-4 w-4" />
                 <span className="hidden sm:inline">Gallery</span>
+              </Link>
+            </Button>
+            <Button
+              variant={pathname === "/clipboard" ? "secondary" : "ghost"}
+              size="sm"
+              asChild
+              className={cn(
+                "transition-all duration-200",
+                pathname === "/clipboard" && "shadow-sm"
+              )}
+            >
+              <Link href="/clipboard" className="flex items-center gap-2">
+                <ClipboardList className="h-4 w-4" />
+                <span className="hidden sm:inline">Clipboard</span>
               </Link>
             </Button>
             <div className="w-px h-6 bg-border mx-1" />
