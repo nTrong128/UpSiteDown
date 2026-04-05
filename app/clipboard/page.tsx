@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { Copy, Trash2, Plus, Loader2, AlertCircle, Check, ClipboardList } from 'lucide-react';
+import { Copy, Trash2, Plus, Loader2, AlertCircle, Check, ClipboardList, Calendar } from 'lucide-react';
 import { Navigation } from '@/components/navigation';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 
 interface StoredText {
   id: number;
@@ -105,15 +106,14 @@ export default function ClipboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       <Navigation />
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            <ClipboardList className="h-8 w-8 text-indigo-500" />
+      <main className="max-w-7xl mx-auto px-4 py-12">
+        <div className="text-center mb-8 animate-slideDown">
+          <h2 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 dark:to-purple-400 bg-clip-text text-transparent mb-3">
             Clipboard
-          </h1>
-          <p className="mt-2 text-muted-foreground">Store and copy text snippets.</p>
+          </h2>
+          <p className="text-muted-foreground text-lg">Store and copy text snippets.</p>
         </div>
 
         {/* Input area */}
@@ -148,78 +148,108 @@ export default function ClipboardPage() {
           </div>
         </div>
 
-        {/* Saved texts list */}
+        {/* Error banners */}
         {(deleteError || copyError) && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            {deleteError ?? copyError}
-          </div>
+          <Card className="border-destructive/50 bg-destructive/10 animate-scaleIn mb-4">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3 text-destructive">
+                <AlertCircle className="h-5 w-5" />
+                <span className="font-medium">{deleteError ?? copyError}</span>
+              </div>
+            </CardContent>
+          </Card>
         )}
+
         {loading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <div className="text-center py-16 animate-fadeIn">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+              <Loader2 className="h-8 w-8 text-primary animate-spin" />
+            </div>
+            <p className="text-muted-foreground">Loading your snippets...</p>
           </div>
         ) : error ? (
-          <div className="flex flex-col items-center gap-3 py-16 text-center">
-            <AlertCircle className="h-10 w-10 text-destructive" />
-            <p className="text-lg font-medium text-destructive">{error}</p>
-            <Button variant="outline" onClick={fetchTexts}>Retry</Button>
-          </div>
+          <Card className="border-destructive/50 bg-destructive/10 animate-scaleIn">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3 text-destructive">
+                <AlertCircle className="h-5 w-5" />
+                <span className="font-medium">{error}</span>
+              </div>
+              <Button variant="outline" className="mt-3" onClick={fetchTexts}>Retry</Button>
+            </CardContent>
+          </Card>
         ) : texts.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-16 text-center text-muted-foreground">
-            <ClipboardList className="h-12 w-12 opacity-40" />
-            <p className="text-lg font-medium">No saved texts yet</p>
-            <p className="text-sm">Type something above and click Save.</p>
-          </div>
+          <Card className="max-w-md mx-auto animate-scaleIn">
+            <CardContent className="pt-12 pb-8 text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-muted mb-6">
+                <ClipboardList className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">No saved texts yet</h3>
+              <p className="text-muted-foreground">Type something above and click Save.</p>
+            </CardContent>
+          </Card>
         ) : (
-          <ul className="space-y-4">
-            {texts.map((text) => (
-              <li
-                key={text.id}
-                className="rounded-xl border bg-card p-4 shadow-sm flex flex-col gap-3"
-              >
-                <pre className="whitespace-pre-wrap break-words text-sm text-foreground font-sans leading-relaxed max-h-64 overflow-y-auto">
-                  {text.content}
-                </pre>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground">{formatDate(text.created_at)}</span>
-                  <div className="flex items-center gap-2">
+          <div className="animate-slideUp">
+            <div className="mb-6">
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">{texts.length}</span> snippet{texts.length > 1 ? 's' : ''} saved
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 animate-stagger">
+              {texts.map((text) => (
+                <Card
+                  key={text.id}
+                  className="overflow-hidden group relative"
+                >
+                  {/* Delete button — top-right hover overlay */}
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="delete-overlay absolute top-2 right-2 z-10 h-8 w-8 shadow-lg"
+                    onClick={() => handleDelete(text.id)}
+                    disabled={deletingId === text.id}
+                    title="Delete snippet"
+                  >
+                    {deletingId === text.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </Button>
+
+                  <CardContent className="pt-4 pb-3">
+                    <pre className="whitespace-pre-wrap break-words text-sm text-foreground font-sans leading-relaxed max-h-40 overflow-y-auto mb-3">
+                      {text.content}
+                    </pre>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      {formatDate(text.created_at)}
+                    </div>
+                  </CardContent>
+
+                  <CardFooter className="pt-0 pb-4">
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
+                      className="w-full"
                       onClick={() => handleCopy(text)}
-                      className="flex items-center gap-1"
                     >
                       {copiedId === text.id ? (
                         <>
-                          <Check className="h-3.5 w-3.5 text-green-500" />
-                          <span>Copied</span>
+                          <Check className="h-4 w-4 text-green-500" />
+                          Copied
                         </>
                       ) : (
                         <>
-                          <Copy className="h-3.5 w-3.5" />
-                          <span>Copy</span>
+                          <Copy className="h-4 w-4" />
+                          Copy
                         </>
                       )}
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(text.id)}
-                      disabled={deletingId === text.id}
-                      className="flex items-center gap-1 text-destructive hover:text-destructive"
-                    >
-                      {deletingId === text.id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </div>
         )}
       </main>
     </div>
