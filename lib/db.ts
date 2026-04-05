@@ -124,3 +124,52 @@ export async function deleteImage(id: number): Promise<boolean> {
   `;
   return result.length > 0;
 }
+
+export interface StoredText {
+  id: number;
+  content: string;
+  created_at: Date;
+}
+
+export async function initTextsDatabase() {
+  const sql = getSQL();
+  await sql`
+    CREATE TABLE IF NOT EXISTS texts (
+      id SERIAL PRIMARY KEY,
+      content TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+}
+
+export async function saveText(content: string): Promise<StoredText> {
+  const sql = getSQL();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result: any = await sql`
+    INSERT INTO texts (content)
+    VALUES (${content})
+    RETURNING id, content, created_at
+  `;
+  return result[0] as StoredText;
+}
+
+export async function getAllTexts(): Promise<StoredText[]> {
+  const sql = getSQL();
+  const result = await sql`
+    SELECT id, content, created_at
+    FROM texts
+    ORDER BY created_at DESC
+  `;
+  return result as StoredText[];
+}
+
+export async function deleteText(id: number): Promise<boolean> {
+  const sql = getSQL();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result: any = await sql`
+    DELETE FROM texts
+    WHERE id = ${id}
+    RETURNING id
+  `;
+  return result.length > 0;
+}
